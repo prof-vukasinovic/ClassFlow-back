@@ -9,17 +9,24 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eidd.dto.ClassRoomPlan;
+import com.eidd.dto.ClassRoomRemarquesDto;
+import com.eidd.dto.EleveRemarquesDto;
+import com.eidd.dto.RemarqueDto;
+import com.eidd.dto.TablePlanDto;
 import com.eidd.model.ClassRoom;
 import com.eidd.model.Eleve;
 import com.eidd.model.Table;
 import com.eidd.service.ClassRoomPlanService;
+import com.eidd.service.RemarqueService;
 
 @RestController
 public class ClassRoomController {
     private final ClassRoomPlanService planService;
+    private final RemarqueService remarqueService;
 
-    public ClassRoomController(ClassRoomPlanService planService) {
+    public ClassRoomController(ClassRoomPlanService planService, RemarqueService remarqueService) {
         this.planService = planService;
+        this.remarqueService = remarqueService;
     }
 
     @GetMapping("/ping")
@@ -28,26 +35,31 @@ public class ClassRoomController {
     }
 
     @GetMapping("/classrooms")
-    public List<ClassRoom> getClassRooms() {
-        return planService.getClassRooms();
+    public List<ClassRoomRemarquesDto> getClassRooms() {
+        return planService.getClassRooms().stream()
+            .map(this::toClassRoomRemarques)
+            .toList();
     }
 
     @GetMapping("/classrooms/{id}")
-    public ResponseEntity<ClassRoom> getClassRoom(@PathVariable long id) {
+    public ResponseEntity<ClassRoomRemarquesDto> getClassRoom(@PathVariable long id) {
         ClassRoom classRoom = planService.getClassRoom(id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(classRoom);
+        return ResponseEntity.ok(toClassRoomRemarques(classRoom));
     }
 
     @GetMapping("/classrooms/{id}/eleves")
-    public ResponseEntity<List<Eleve>> getEleves(@PathVariable long id) {
+    public ResponseEntity<List<EleveRemarquesDto>> getEleves(@PathVariable long id) {
         ClassRoom classRoom = planService.getClassRoom(id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(planService.getEleves(id));
+        List<EleveRemarquesDto> eleves = classRoom.getEleves().getEleves().stream()
+            .map(eleve -> toEleveRemarques(classRoom.getId(), eleve))
+            .toList();
+        return ResponseEntity.ok(eleves);
     }
 
     @GetMapping("/classrooms/{id}/tables")
@@ -61,10 +73,38 @@ public class ClassRoomController {
 
     @GetMapping("/classrooms/{id}/plan")
     public ResponseEntity<ClassRoomPlan> getPlan(@PathVariable long id) {
-        ClassRoomPlan plan = planService.getPlan(id);
-        if (plan == null) {
+        ClassRoom classRoom = planService.getClassRoom(id);
+        if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(plan);
+        List<TablePlanDto> tables = classRoom.getTables().stream()
+            .map(table -> new TablePlanDto(
+                table.getPosition().getX(),
+                table.getPosition().getY(),
+                findEleveForTable(classRoom, table)))
+            .toList();
+        return ResponseEntity.ok(new ClassRoomPlan(classRoom.getId(), classRoom.getNom(), tables));
+    }
+
+    private ClassRoomRemarquesDto toClassRoomRemarques(ClassRoom classRoom) {
+        List<EleveRemarquesDto> eleves = classRoom.getEleves().getEleves().stream()
+            .map(eleve -> toEleveRemarques(classRoom.getId(), eleve))
+            .toList();
+        return new ClassRoomRemarquesDto(classRoom.getId(), classRoom.getNom(), eleves, classRoom.getTables());
+    }
+
+    private EleveRemarquesDto toEleveRemarques(long classRoomId, Eleve eleve) {
+        List<RemarqueDto> remarques = remarqueService.listByEleveId(eleve.getId()).stream()
+            .filter(remarque -> remarque.classRoomId() == null || remarque.classRoomId() == classRoomId)
+            .toList();
+        return new EleveRemarquesDto(eleve.getId(), eleve.getNom(), eleve.getPrenom(), remarques);
+    }
+
+    private EleveRemarquesDto findEleveForTable(ClassRoom classRoom, Table table) {
+        return classRoom.getEleves().getEleves().stream()
+            .filter(eleve -> eleve.getTable() == table)
+            .findFirst()
+            .map(eleve -> toEleveRemarques(classRoom.getId(), eleve))
+            .orElse(null);
     }
 }
