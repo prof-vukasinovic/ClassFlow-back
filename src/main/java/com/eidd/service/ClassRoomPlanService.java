@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
+import com.eidd.DTO.ClassRoomExport;
 import com.eidd.model.ClassRoom;
 import com.eidd.model.Eleve;
 import com.eidd.model.Groupe;
@@ -51,6 +52,24 @@ public class ClassRoomPlanService {
         return classRoom.getTables();
     }
 
+    public ClassRoomExport exportClassRoom(long id) {
+        ClassRoom classRoom = classRooms.get(id);
+        if (classRoom == null) {
+            return null;
+        }
+        return new ClassRoomExport(classRoom);
+    }
+
+    public ClassRoom saveClassRoom(ClassRoomExport export) {
+        if (export == null) {
+            return null;
+        }
+        ClassRoom classRoom = new ClassRoom(export);
+        classRooms.put(classRoom.getId(), classRoom);
+        updateCountersFromImport(classRoom);
+        return classRoom;
+    }
+
     private void seedSampleData() {
         ClassRoomRespository.resetCounter();
         ClassRoomRespository.incrementCounter();
@@ -81,5 +100,25 @@ public class ClassRoomPlanService {
         classRoom.setEleves(groupe);
         classRoom.setTables(tables);
         return classRoom;
+    }
+
+    private void updateCountersFromImport(ClassRoom classRoom) {
+        if (classRoom == null) {
+            return;
+        }
+
+        long classRoomId = classRoom.getId();
+        while (ClassRoomRespository.getCounter() <= classRoomId) {
+            ClassRoomRespository.incrementCounter();
+        }
+
+        long maxEleveId = classRoom.getEleves() == null ? 0
+            : classRoom.getEleves().getEleves().stream()
+                .mapToLong(Eleve::getId)
+                .max()
+                .orElse(0);
+        if (maxEleveId >= eleveIdCounter) {
+            eleveIdCounter = maxEleveId + 1;
+        }
     }
 }

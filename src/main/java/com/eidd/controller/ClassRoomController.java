@@ -3,11 +3,15 @@ package com.eidd.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.eidd.DTO.ClassRoomExport;
 import com.eidd.dto.ClassRoomPlan;
 import com.eidd.dto.ClassRoomRemarquesDto;
 import com.eidd.dto.EleveRemarquesDto;
@@ -84,6 +88,31 @@ public class ClassRoomController {
                 findEleveForTable(classRoom, table)))
             .toList();
         return ResponseEntity.ok(new ClassRoomPlan(classRoom.getId(), classRoom.getNom(), tables));
+    }
+
+    @GetMapping("/classrooms/{id}/chargement")
+    public ResponseEntity<ClassRoomExport> loadClassRoom(@PathVariable long id) {
+        ClassRoomExport export = planService.exportClassRoom(id);
+        if (export == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(export);
+    }
+
+    @PostMapping("/classrooms/sauvegarde")
+    public ResponseEntity<?> saveClassRoom(@RequestBody ClassRoomExport export) {
+        if (export == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "classRoom export is required"));
+        }
+
+        boolean exists = planService.getClassRoom(export.getId()) != null;
+        ClassRoom saved = planService.saveClassRoom(export);
+        if (saved == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid classRoom export"));
+        }
+
+        HttpStatus status = exists ? HttpStatus.OK : HttpStatus.CREATED;
+        return ResponseEntity.status(status).body(export);
     }
 
     private ClassRoomRemarquesDto toClassRoomRemarques(ClassRoom classRoom) {
