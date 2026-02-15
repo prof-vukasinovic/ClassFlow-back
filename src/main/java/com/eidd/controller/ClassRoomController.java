@@ -129,6 +129,7 @@ public class ClassRoomController {
             return ResponseEntity.notFound().build();
         }
 
+        
         Integer tableIndex = request.tableIndex();
         if (tableIndex != null) {
             List<Table> tables = classRoom.getTables();
