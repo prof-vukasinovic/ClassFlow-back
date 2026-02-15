@@ -35,6 +35,91 @@ public class ClassRoomPlanService {
         return classRooms.get(id);
     }
 
+    public boolean deleteClassRoom(long id) {
+        return classRooms.remove(id) != null;
+    }
+
+    public boolean deleteEleve(long classRoomId, long eleveId) {
+        ClassRoom classRoom = classRooms.get(classRoomId);
+        if (classRoom == null || classRoom.getEleves() == null) {
+            return false;
+        }
+        List<Eleve> eleves = classRoom.getEleves().getEleves();
+        if (eleves == null) {
+            return false;
+        }
+        for (int i = 0; i < eleves.size(); i++) {
+            Eleve eleve = eleves.get(i);
+            if (eleve.getId() == eleveId) {
+                eleves.remove(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Eleve createEleve(long classRoomId, String nom, String prenom, Integer tableIndex) {
+        ClassRoom classRoom = classRooms.get(classRoomId);
+        if (classRoom == null) {
+            return null;
+        }
+
+        Groupe groupe = classRoom.getEleves();
+        if (groupe == null) {
+            groupe = new Groupe();
+            classRoom.setEleves(groupe);
+        }
+
+        Eleve eleve = new Eleve(eleveIdCounter++, nom, prenom);
+        if (tableIndex != null) {
+            List<Table> tables = classRoom.getTables();
+            if (tables == null || tableIndex < 0 || tableIndex >= tables.size()) {
+                return null;
+            }
+            eleve.setTable(tables.get(tableIndex));
+        }
+
+        groupeService.ajouterEleve(groupe, eleve);
+        return eleve;
+    }
+
+    public Table createTable(long classRoomId, int x, int y) {
+        ClassRoom classRoom = classRooms.get(classRoomId);
+        if (classRoom == null) {
+            return null;
+        }
+
+        List<Table> tables = classRoom.getTables();
+        if (tables == null) {
+            tables = new ArrayList<>();
+            classRoom.setTables(tables);
+        }
+
+        Table table = tableService.creerTable(new Position(x, y));
+        tables.add(table);
+        return table;
+    }
+
+    public boolean deleteTableByIndex(long classRoomId, int tableIndex) {
+        ClassRoom classRoom = classRooms.get(classRoomId);
+        if (classRoom == null || classRoom.getTables() == null) {
+            return false;
+        }
+        List<Table> tables = classRoom.getTables();
+        if (tableIndex < 0 || tableIndex >= tables.size()) {
+            return false;
+        }
+        Table removed = tables.remove(tableIndex);
+        if (classRoom.getEleves() != null) {
+            for (Eleve eleve : classRoom.getEleves().getEleves()) {
+                if (eleve.getTable() == removed) {
+                    eleve.setTable(null);
+                }
+            }
+        }
+        return true;
+    }
+
 
     public List<Eleve> getEleves(long id) {
         ClassRoom classRoom = classRooms.get(id);

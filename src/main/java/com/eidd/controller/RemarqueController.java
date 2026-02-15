@@ -59,6 +59,23 @@ public class RemarqueController {
         return ResponseEntity.ok(remarqueService.listByEleveId(eleveId));
     }
 
+    @GetMapping("/classrooms/{classRoomId}/eleves/{eleveId}/remarques")
+    public ResponseEntity<List<RemarqueDto>> getClassRoomEleveRemarques(
+        @PathVariable long classRoomId,
+        @PathVariable long eleveId
+    ) {
+        if (!classRoomExists(classRoomId)) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!eleveInClassRoom(classRoomId, eleveId)) {
+            return ResponseEntity.notFound().build();
+        }
+        List<RemarqueDto> remarques = remarqueService.listByEleveId(eleveId).stream()
+            .filter(remarque -> remarque.classRoomId() == null || remarque.classRoomId() == classRoomId)
+            .toList();
+        return ResponseEntity.ok(remarques);
+    }
+
     @GetMapping("/remarques/stats")
     public RemarqueStats getStats() {
         return remarqueService.stats();
@@ -117,6 +134,15 @@ public class RemarqueController {
     private boolean eleveExists(long eleveId) {
         return planService.getClassRooms().stream()
             .flatMap(cr -> cr.getEleves().getEleves().stream())
+            .anyMatch(eleve -> eleve.getId() == eleveId);
+    }
+
+    private boolean eleveInClassRoom(long classRoomId, long eleveId) {
+        var classRoom = planService.getClassRoom(classRoomId);
+        if (classRoom == null || classRoom.getEleves() == null) {
+            return false;
+        }
+        return classRoom.getEleves().getEleves().stream()
             .anyMatch(eleve -> eleve.getId() == eleveId);
     }
 

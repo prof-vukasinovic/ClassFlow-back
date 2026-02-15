@@ -2,9 +2,11 @@ package com.eidd.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.stereotype.Service;
@@ -73,6 +75,22 @@ public class RemarqueService {
         return remarques.remove(id) != null;
     }
 
+    public int deleteByEleveId(long eleveId) {
+        return deleteWhere(remarque -> remarque.eleveId() != null && remarque.eleveId() == eleveId);
+    }
+
+    public int deleteByEleveIds(List<Long> eleveIds) {
+        if (eleveIds == null || eleveIds.isEmpty()) {
+            return 0;
+        }
+        Set<Long> ids = new HashSet<>(eleveIds);
+        return deleteWhere(remarque -> remarque.eleveId() != null && ids.contains(remarque.eleveId()));
+    }
+
+    public int deleteByClassRoomId(long classRoomId) {
+        return deleteWhere(remarque -> remarque.classRoomId() != null && remarque.classRoomId() == classRoomId);
+    }
+
     public RemarqueStats stats() {
         Map<Long, Integer> byEleve = new LinkedHashMap<>();
         Map<Long, Integer> byClassRoom = new LinkedHashMap<>();
@@ -91,6 +109,19 @@ public class RemarqueService {
 
     private String normalizeIntitule(String intitule) {
         return intitule == null ? null : intitule.trim();
+    }
+
+    private int deleteWhere(java.util.function.Predicate<RemarqueDto> predicate) {
+        int removed = 0;
+        var iterator = remarques.entrySet().iterator();
+        while (iterator.hasNext()) {
+            RemarqueDto remarque = iterator.next().getValue();
+            if (predicate.test(remarque)) {
+                iterator.remove();
+                removed++;
+            }
+        }
+        return removed;
     }
 
     private void seedSampleData() {
