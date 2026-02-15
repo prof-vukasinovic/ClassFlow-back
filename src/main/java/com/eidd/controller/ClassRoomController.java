@@ -3,6 +3,7 @@ package com.eidd.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,15 +31,24 @@ import com.eidd.service.RemarqueService;
 public class ClassRoomController {
     private final ClassRoomPlanService planService;
     private final RemarqueService remarqueService;
+    private final String appVersion;
 
-    public ClassRoomController(ClassRoomPlanService planService, RemarqueService remarqueService) {
+    public ClassRoomController(ClassRoomPlanService planService,
+            RemarqueService remarqueService,
+            @Value("${app.version:unknown}") String appVersion) {
         this.planService = planService;
         this.remarqueService = remarqueService;
+        this.appVersion = appVersion;
     }
 
     @GetMapping("/ping")
     public Map<String, String> ping() {
         return Map.of("status", "ok", "service", "classflow-back");
+    }
+
+    @GetMapping("/version")
+    public Map<String, String> version() {
+        return Map.of("version", appVersion);
     }
 
     @GetMapping("/classrooms")
@@ -129,7 +139,7 @@ public class ClassRoomController {
             return ResponseEntity.notFound().build();
         }
 
-        
+
         Integer tableIndex = request.tableIndex();
         if (tableIndex != null) {
             List<Table> tables = classRoom.getTables();
