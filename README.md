@@ -12,12 +12,17 @@ GET /classrooms/{id}/eleves
 GET /classrooms/{id}/tables
 GET /classrooms/{id}/plan
 GET /classrooms/{id}/chargement
+GET /classrooms/{id}/groupes
 POST /classrooms/sauvegarde
 POST /classrooms/{id}/eleves
 POST /classrooms/{id}/tables
+POST /classrooms/{id}/groupes
+POST /classrooms/{id}/groupes/aleatoire
+PUT /classrooms/{classRoomId}/groupes/{groupeId}
 DELETE /classrooms/{id}
 DELETE /classrooms/{classRoomId}/eleves/{eleveId}
 DELETE /classrooms/{classRoomId}/tables/{tableIndex}
+DELETE /classrooms/{classRoomId}/groupes/{groupeId}
 
 GET /remarques
 GET /remarques/{id}
@@ -28,3 +33,68 @@ GET /remarques/stats
 POST /remarques
 PUT /remarques/{id}
 DELETE /remarques/{id}
+
+# Exemples de body
+
+## Creer un eleve
+POST /classrooms/{id}/eleves
+```json
+{
+	"nom": "Durand",
+	"prenom": "Alice",
+	"tableIndex": 1
+}
+```
+
+## Creer une table
+POST /classrooms/{id}/tables
+```json
+{
+	"x": 2,
+	"y": 1
+}
+```
+
+## Creer des groupes non aleatoires
+POST /classrooms/{id}/groupes
+```json
+{
+	"groupes": [[1, 2], [3, 4]]
+}
+```
+
+## Creer des groupes aleatoires
+POST /classrooms/{id}/groupes/aleatoire
+```json
+{
+	"groupCount": 3
+}
+```
+
+## Modifier un groupe (ajouter / retirer des eleves)
+PUT /classrooms/{classRoomId}/groupes/{groupeId}
+```json
+{
+	"addEleveIds": [5, 8],
+	"removeEleveIds": [2]
+}
+```
+
+## Remarques
+POST /remarques
+```json
+{
+	"intitule": "Participation active",
+	"eleveId": 1,
+	"classRoomId": 1
+}
+```
+
+PUT /remarques/{id}
+```json
+{
+	"intitule": "Bon travail",
+	"eleveId": 1,
+	"classRoomId": 1
+}
+```

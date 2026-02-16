@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,6 +19,10 @@ import com.eidd.dto.ClassRoomPlan;
 import com.eidd.dto.ClassRoomRemarquesDto;
 import com.eidd.dto.EleveCreateRequest;
 import com.eidd.dto.EleveRemarquesDto;
+import com.eidd.dto.GroupeCreateRequest;
+import com.eidd.dto.GroupeDto;
+import com.eidd.dto.GroupeRandomCreateRequest;
+import com.eidd.dto.GroupeUpdateRequest;
 import com.eidd.dto.RemarqueDto;
 import com.eidd.dto.TableCreateRequest;
 import com.eidd.dto.TablePlanDto;
@@ -25,6 +30,7 @@ import com.eidd.model.ClassRoom;
 import com.eidd.model.Eleve;
 import com.eidd.model.Table;
 import com.eidd.service.ClassRoomPlanService;
+import com.eidd.service.GroupeEntry;
 import com.eidd.service.RemarqueService;
 
 @RestController
@@ -170,6 +176,90 @@ public class ClassRoomController {
         return ResponseEntity.status(HttpStatus.CREATED).body(table);
     }
 
+    @PostMapping("/classrooms/{id}/groupes/aleatoire")
+    public ResponseEntity<?> createGroupesAleatoires(@PathVariable long id, @RequestBody GroupeRandomCreateRequest request) {
+        if (request == null || request.groupCount() <= 0) {
+            return ResponseEntity.badRequest().body(Map.of("error", "groupCount must be greater than 0"));
+        }
+
+        ClassRoom classRoom = planService.getClassRoom(id);
+        if (classRoom == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<GroupeEntry> created = planService.createGroupesAleatoires(id, request.groupCount());
+        if (created == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "unable to create random groups"));
+        }
+
+        List<GroupeDto> response = created.stream()
+            .map(entry -> toGroupeDto(classRoom.getId(), entry))
+            .toList();
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/classrooms/{id}/groupes")
+    public ResponseEntity<?> createGroupes(@PathVariable long id, @RequestBody GroupeCreateRequest request) {
+        if (request == null || request.groupes() == null || request.groupes().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "groupes are required"));
+        }
+
+        ClassRoom classRoom = planService.getClassRoom(id);
+        if (classRoom == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<GroupeEntry> created = planService.createGroupes(id, request.groupes());
+        if (created == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "unable to create groups"));
+        }
+
+        List<GroupeDto> response = created.stream()
+            .map(entry -> toGroupeDto(classRoom.getId(), entry))
+            .toList();
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/classrooms/{id}/groupes")
+    public ResponseEntity<List<GroupeDto>> getGroupes(@PathVariable long id) {
+        ClassRoom classRoom = planService.getClassRoom(id);
+        if (classRoom == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<GroupeDto> response = planService.getGroupes(id).stream()
+            .map(entry -> toGroupeDto(classRoom.getId(), entry))
+            .toList();
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/classrooms/{classRoomId}/groupes/{groupeId}")
+    public ResponseEntity<?> updateGroupe(@PathVariable long classRoomId,
+            @PathVariable long groupeId,
+            @RequestBody GroupeUpdateRequest request) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "update payload is required"));
+        }
+
+        ClassRoom classRoom = planService.getClassRoom(classRoomId);
+        if (classRoom == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        boolean groupeExists = planService.getGroupes(classRoomId).stream()
+            .anyMatch(entry -> entry.id() == groupeId);
+        if (!groupeExists) {
+            return ResponseEntity.notFound().build();
+        }
+
+        GroupeEntry updated = planService.updateGroupe(classRoomId, groupeId, request.addEleveIds(), request.removeEleveIds());
+        if (updated == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "unable to update group"));
+        }
+
+        return ResponseEntity.ok(toGroupeDto(classRoom.getId(), updated));
+    }
+
     @DeleteMapping("/classrooms/{id}")
     public ResponseEntity<Void> deleteClassRoom(@PathVariable long id) {
         ClassRoom classRoom = planService.getClassRoom(id);
@@ -204,6 +294,14 @@ public class ClassRoomController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/classrooms/{classRoomId}/groupes/{groupeId}")
+    public ResponseEntity<Void> deleteGroupe(@PathVariable long classRoomId, @PathVariable long groupeId) {
+        if (!planService.deleteGroupe(classRoomId, groupeId)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.noContent().build();
+    }
+
     private ClassRoomRemarquesDto toClassRoomRemarques(ClassRoom classRoom) {
         List<EleveRemarquesDto> eleves = classRoom.getEleves().getEleves().stream()
             .map(eleve -> toEleveRemarques(classRoom.getId(), eleve))
@@ -224,6 +322,13 @@ public class ClassRoomController {
             .findFirst()
             .map(eleve -> toEleveRemarques(classRoom.getId(), eleve))
             .orElse(null);
+    }
+
+    private GroupeDto toGroupeDto(long classRoomId, GroupeEntry entry) {
+        List<EleveRemarquesDto> eleves = entry.groupe().getEleves().stream()
+            .map(eleve -> toEleveRemarques(classRoomId, eleve))
+            .toList();
+        return new GroupeDto(entry.id(), eleves);
     }
 
     private boolean isBlank(String value) {
