@@ -20,6 +20,13 @@ import com.eidd.repositories.ClassRoomRespository;
 
 @Service
 public class ClassRoomPlanService {
+    private static final List<String[]> SEED_ELEVES = List.of(
+        new String[] { "Gdaiem", "Yassin" },
+        new String[] { "Adiveze", "Bastien" },
+        new String[] { "Lin", "Eve" },
+        new String[] { "Lege", "Hugo" },
+        new String[] { "Abbou", "Thierry" }
+    );
     private final Map<Long, ClassRoom> classRooms = new LinkedHashMap<>();
     private final Map<Long, Map<Long, Groupe>> classRoomGroupes = new LinkedHashMap<>();
     private final ClassRoomService classRoomService = new ClassRoomService();
@@ -43,6 +50,17 @@ public class ClassRoomPlanService {
     public boolean deleteClassRoom(long id) {
         classRoomGroupes.remove(id);
         return classRooms.remove(id) != null;
+    }
+
+    public ClassRoom createNewClassRoom(String nom) {
+        if (nom == null || nom.trim().isEmpty()) {
+            return null;
+        }
+        ClassRoom classRoom = classRoomService.creerClassRoom(nom);
+        classRoom.setEleves(new Groupe());
+        classRoom.setTables(new ArrayList<>());
+        classRooms.put(classRoom.getId(), classRoom);
+        return classRoom;
     }
 
     public List<GroupeEntry> createGroupesAleatoires(long classRoomId, int groupCount) {
@@ -268,6 +286,46 @@ public class ClassRoomPlanService {
         return eleve;
     }
 
+    public Eleve updateEleve(long classRoomId, long eleveId, String nom, String prenom) {
+        ClassRoom classRoom = classRooms.get(classRoomId);
+        if (classRoom == null || classRoom.getEleves() == null) {
+            return null;
+        }
+
+        List<Eleve> eleves = classRoom.getEleves().getEleves();
+        if (eleves == null) {
+            return null;
+        }
+
+        for (Eleve eleve : eleves) {
+            if (eleve.getId() == eleveId) {
+                if (nom != null && !nom.trim().isEmpty()) {
+                    eleve.setNom(nom);
+                }
+                if (prenom != null && !prenom.trim().isEmpty()) {
+                    eleve.setPrenom(prenom);
+                }
+                return eleve;
+            }
+        }
+
+        return null;
+    }
+
+    public ClassRoom updateClassRoom(long classRoomId, String nom) {
+        ClassRoom classRoom = classRooms.get(classRoomId);
+        if (classRoom == null) {
+            return null;
+        }
+
+        if (nom == null || nom.trim().isEmpty()) {
+            return null;
+        }
+
+        classRoom.setNom(nom);
+        return classRoom;
+    }
+
     public Table createTable(long classRoomId, int x, int y) {
         ClassRoom classRoom = classRooms.get(classRoomId);
         if (classRoom == null) {
@@ -344,8 +402,8 @@ public class ClassRoomPlanService {
         ClassRoomRespository.resetCounter();
         ClassRoomRespository.incrementCounter();
         eleveIdCounter = 1;
-        ClassRoom salleA = createClassRoom("Salle A", 3, 2);
-        ClassRoom salleB = createClassRoom("Salle B", 2, 2);
+        ClassRoom salleA = createClassRoom("6èmeA", 3, 1);
+        ClassRoom salleB = createClassRoom("5èmeB", 2, 1);
         classRooms.put(salleA.getId(), salleA);
         classRooms.put(salleB.getId(), salleB);
     }
@@ -361,7 +419,8 @@ public class ClassRoomPlanService {
                 tables.add(table);
 
                 long eleveId = eleveIdCounter++;
-                Eleve eleve = new Eleve(eleveId, "Eleve" + eleveId, "Prenom" + eleveId);
+                String[] names = SEED_ELEVES.get((int) ((eleveId - 1) % SEED_ELEVES.size()));
+                Eleve eleve = new Eleve(eleveId, names[0], names[1]);
                 eleve.setTable(table);
                 groupeService.ajouterEleve(groupe, eleve);
             }

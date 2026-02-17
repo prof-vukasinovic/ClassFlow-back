@@ -13,11 +13,14 @@ GET /classrooms/{id}/tables
 GET /classrooms/{id}/plan
 GET /classrooms/{id}/chargement
 GET /classrooms/{id}/groupes
+POST /classrooms
 POST /classrooms/sauvegarde
 POST /classrooms/{id}/eleves
 POST /classrooms/{id}/tables
 POST /classrooms/{id}/groupes
 POST /classrooms/{id}/groupes/aleatoire
+PUT /classrooms/{id}
+PUT /classrooms/{classRoomId}/eleves/{eleveId}
 PUT /classrooms/{classRoomId}/groupes/{groupeId}
 DELETE /classrooms/{id}
 DELETE /classrooms/{classRoomId}/eleves/{eleveId}
@@ -36,6 +39,22 @@ DELETE /remarques/{id}
 
 # Exemples de body
 
+## Creer une classroom
+POST /classrooms
+```json
+{
+	"nom": "6èmeA"
+}
+```
+
+## Modifier le nom d'une classroom
+PUT /classrooms/{id}
+```json
+{
+	"nom": "7èmeB"
+}
+```
+
 ## Creer un eleve
 POST /classrooms/{id}/eleves
 ```json
@@ -43,6 +62,15 @@ POST /classrooms/{id}/eleves
 	"nom": "Durand",
 	"prenom": "Alice",
 	"tableIndex": 1
+}
+```
+
+## Modifier un eleve
+PUT /classrooms/{classRoomId}/eleves/{eleveId}
+```json
+{
+	"nom": "Martin",
+	"prenom": "Pierre"
 }
 ```
 

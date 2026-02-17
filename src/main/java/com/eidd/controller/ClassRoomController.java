@@ -15,10 +15,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eidd.DTO.ClassRoomExport;
+import com.eidd.dto.ClassRoomCreateRequest;
 import com.eidd.dto.ClassRoomPlan;
 import com.eidd.dto.ClassRoomRemarquesDto;
+import com.eidd.dto.ClassRoomUpdateRequest;
 import com.eidd.dto.EleveCreateRequest;
 import com.eidd.dto.EleveRemarquesDto;
+import com.eidd.dto.EleveUpdateRequest;
 import com.eidd.dto.GroupeCreateRequest;
 import com.eidd.dto.GroupeDto;
 import com.eidd.dto.GroupeRandomCreateRequest;
@@ -57,6 +60,20 @@ public class ClassRoomController {
         return Map.of("version", appVersion);
     }
 
+    @PostMapping("/classrooms")
+    public ResponseEntity<?> createClassRoom(@RequestBody ClassRoomCreateRequest request) {
+        if (request == null || request.nom() == null || request.nom().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "nom is required"));
+        }
+
+        ClassRoom created = planService.createNewClassRoom(request.nom());
+        if (created == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "unable to create classroom"));
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(toClassRoomRemarques(created));
+    }
+
     @GetMapping("/classrooms")
     public List<ClassRoomRemarquesDto> getClassRooms() {
         return planService.getClassRooms().stream()
@@ -71,6 +88,20 @@ public class ClassRoomController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(toClassRoomRemarques(classRoom));
+    }
+
+    @PutMapping("/classrooms/{id}")
+    public ResponseEntity<?> updateClassRoom(@PathVariable long id, @RequestBody ClassRoomUpdateRequest request) {
+        if (request == null || request.nom() == null || request.nom().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "nom is required"));
+        }
+
+        ClassRoom updated = planService.updateClassRoom(id, request.nom());
+        if (updated == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(toClassRoomRemarques(updated));
     }
 
     @GetMapping("/classrooms/{id}/eleves")
@@ -159,8 +190,28 @@ public class ClassRoomController {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid eleve"));
         }
 
-        EleveRemarquesDto dto = new EleveRemarquesDto(eleve.getId(), eleve.getNom(), eleve.getPrenom(), List.of());
-        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toEleveRemarques(id, eleve));
+    }
+
+    @PutMapping("/classrooms/{classRoomId}/eleves/{eleveId}")
+    public ResponseEntity<?> updateEleve(@PathVariable long classRoomId, 
+            @PathVariable long eleveId,
+            @RequestBody EleveUpdateRequest request) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "update payload is required"));
+        }
+
+        ClassRoom classRoom = planService.getClassRoom(classRoomId);
+        if (classRoom == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Eleve updated = planService.updateEleve(classRoomId, eleveId, request.nom(), request.prenom());
+        if (updated == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(toEleveRemarques(classRoomId, updated));
     }
 
     @PostMapping("/classrooms/{id}/tables")
