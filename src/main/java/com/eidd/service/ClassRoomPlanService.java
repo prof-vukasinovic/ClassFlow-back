@@ -56,7 +56,8 @@ public class ClassRoomPlanService {
         if (nom == null || nom.trim().isEmpty()) {
             return null;
         }
-        ClassRoom classRoom = classRoomService.creerClassRoom(nom);
+        ClassRoomExport export = classRoomService.creerClassRoom(nom);
+        ClassRoom classRoom = new ClassRoom(export);
         classRoom.setEleves(new Groupe());
         classRoom.setTables(new ArrayList<>());
         classRooms.put(classRoom.getId(), classRoom);
@@ -398,6 +399,106 @@ public class ClassRoomPlanService {
         return classRoom;
     }
 
+    public ClassRoom importFromCsv(String csvContent) {
+        if (csvContent == null || csvContent.trim().isEmpty()) {
+            return null;
+        }
+
+        String normalizedCsv = normalizeCsvContent(csvContent);
+        ClassRoomExport export = CsvService.importFromCsv(normalizedCsv);
+        if (export == null) {
+            return null;
+        }
+
+        export.setNom(unquoteCsvValue(export.getNom()));
+        
+        ClassRoom classRoom = new ClassRoom(export);
+        classRooms.put(classRoom.getId(), classRoom);
+        updateCountersFromImport(classRoom);
+        return classRoom;
+    }
+
+    public String exportToCsv(long id) {
+        ClassRoom classRoom = classRooms.get(id);
+        if (classRoom == null) {
+            return null;
+        }
+        
+        ClassRoomExport export = new ClassRoomExport(classRoom);
+        return CsvService.exportToCsv(export);
+    }
+
+    private String normalizeCsvContent(String csvContent) {
+        String trimmed = csvContent.trim();
+        if (trimmed.isEmpty()) {
+            return csvContent;
+        }
+
+        String[] lines = trimmed.split("\\r?\\n");
+        if (lines.length == 0) {
+            return csvContent;
+        }
+
+        String firstLine = lines[0].trim();
+        if (firstLine.contains(";")) {
+            return csvContent;
+        }
+
+        long classRoomId = ClassRoomRespository.getCounter();
+        ClassRoomRespository.incrementCounter();
+
+        StringBuilder builder = new StringBuilder();
+        builder.append(classRoomId)
+            .append(";\"")
+            .append(escapeCsvValue(firstLine))
+            .append("\"\n");
+
+        long eleveId = 1;
+        for (int i = 1; i < lines.length; i++) {
+            String line = lines[i].trim();
+            if (line.isEmpty()) {
+                continue;
+            }
+
+            String[] parts = line.split(",", -1);
+            if (parts.length < 2) {
+                parts = line.split(";", -1);
+            }
+            if (parts.length < 2) {
+                continue;
+            }
+
+            String nom = parts[0].trim();
+            String prenom = parts[1].trim();
+            builder.append(eleveId++)
+                .append(";\"")
+                .append(escapeCsvValue(nom))
+                .append("\";\"")
+                .append(escapeCsvValue(prenom))
+                .append("\"\n");
+        }
+
+        return builder.toString();
+    }
+
+    private String escapeCsvValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\"", "\"\"");
+    }
+
+    private String unquoteCsvValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+            return trimmed.substring(1, trimmed.length() - 1).replace("\"\"", "\"");
+        }
+        return trimmed;
+    }
+
     private void seedSampleData() {
         ClassRoomRespository.resetCounter();
         ClassRoomRespository.incrementCounter();
@@ -409,7 +510,8 @@ public class ClassRoomPlanService {
     }
 
     private ClassRoom createClassRoom(String name, int width, int height) {
-        ClassRoom classRoom = classRoomService.creerClassRoom(name);
+        ClassRoomExport export = classRoomService.creerClassRoom(name);
+        ClassRoom classRoom = new ClassRoom(export);
         Groupe groupe = new Groupe();
         List<Table> tables = new ArrayList<>();
 

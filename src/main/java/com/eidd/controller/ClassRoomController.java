@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.eidd.DTO.ClassRoomExport;
 import com.eidd.dto.ClassRoomCreateRequest;
 import com.eidd.dto.ClassRoomPlan;
 import com.eidd.dto.ClassRoomRemarquesDto;
@@ -140,29 +139,30 @@ public class ClassRoomController {
         return ResponseEntity.ok(new ClassRoomPlan(classRoom.getId(), classRoom.getNom(), tables));
     }
 
-    @GetMapping("/classrooms/{id}/chargement")
-    public ResponseEntity<ClassRoomExport> loadClassRoom(@PathVariable long id) {
-        ClassRoomExport export = planService.exportClassRoom(id);
-        if (export == null) {
-            return ResponseEntity.notFound().build();
+    @PostMapping("/classrooms/import-csv")
+    public ResponseEntity<?> importClassRoomFromCsv(@RequestBody String csvContent) {
+        if (csvContent == null || csvContent.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "CSV content is required"));
         }
-        return ResponseEntity.ok(export);
+
+        ClassRoom imported = planService.importFromCsv(csvContent);
+        if (imported == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid CSV format"));
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(toClassRoomRemarques(imported));
     }
 
-    @PostMapping("/classrooms/sauvegarde")
-    public ResponseEntity<?> saveClassRoom(@RequestBody ClassRoomExport export) {
-        if (export == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "classRoom export is required"));
+    @GetMapping("/classrooms/{id}/export-csv")
+    public ResponseEntity<String> exportClassRoomToCsv(@PathVariable long id) {
+        String csvContent = planService.exportToCsv(id);
+        if (csvContent == null) {
+            return ResponseEntity.notFound().build();
         }
-
-        boolean exists = planService.getClassRoom(export.getId()) != null;
-        ClassRoom saved = planService.saveClassRoom(export);
-        if (saved == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "invalid classRoom export"));
-        }
-
-        HttpStatus status = exists ? HttpStatus.OK : HttpStatus.CREATED;
-        return ResponseEntity.status(status).body(export);
+        return ResponseEntity.ok()
+            .header("Content-Type", "text/csv")
+            .header("Content-Disposition", "attachment; filename=\"classroom-" + id + ".csv\"")
+            .body(csvContent);
     }
 
     @PostMapping("/classrooms/{id}/eleves")

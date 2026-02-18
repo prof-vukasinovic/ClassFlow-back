@@ -11,10 +11,10 @@ GET /classrooms/{id}
 GET /classrooms/{id}/eleves
 GET /classrooms/{id}/tables
 GET /classrooms/{id}/plan
-GET /classrooms/{id}/chargement
+GET /classrooms/{id}/export-csv
 GET /classrooms/{id}/groupes
 POST /classrooms
-POST /classrooms/sauvegarde
+POST /classrooms/import-csv
 POST /classrooms/{id}/eleves
 POST /classrooms/{id}/tables
 POST /classrooms/{id}/groupes
@@ -51,9 +51,22 @@ POST /classrooms
 PUT /classrooms/{id}
 ```json
 {
-	"nom": "7èmeB"
+	"nom": "5èmeB"
 }
 ```
+
+## Importer une classroom depuis CSV
+POST /classrooms/import-csv
+```
+nom,prenom
+Durand,Alice
+Martin,Pierre
+Dupont,Sophie
+```
+
+## Exporter une classroom en CSV
+GET /classrooms/{id}/export-csv
+Retourne un fichier CSV avec les élèves de la classe.
 
 ## Creer un eleve
 POST /classrooms/{id}/eleves
