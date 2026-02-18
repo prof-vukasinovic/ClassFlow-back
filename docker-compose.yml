@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  classflow-back:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: classflow-back:latest
+    ports:
+      - "8080:8080"
+    environment:
+      # Change profile if needed, or remove if unused
+      - SPRING_PROFILES_ACTIVE=default
+    restart: unless-stopped

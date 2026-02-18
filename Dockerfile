@@ -1,9 +1,12 @@
-FROM tomcat:10.1-jre21
+FROM tomcat:10.1-jdk21-temurin
 
-ARG WAR_FILE=target/classflow-back-1.2.0.war
+# Clean default webapps
+RUN rm -rf /usr/local/tomcat/webapps/*
 
-RUN rm -rf C:/tomcat/webapps/*
+# Copy your custom WAR into Tomcat
+# Adjust the path/name if your WAR file is different.
+COPY libs/*.war /usr/local/tomcat/webapps/ROOT.war
 
-COPY ${WAR_FILE} C:/tomcat/webapps/ROOT.war
-EXPOSE 8080 
+EXPOSE 8080
+
 CMD ["catalina.sh", "run"]
