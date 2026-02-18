@@ -1,4 +1,4 @@
 package com.eidd.dto;
 
-public record RemarqueRequest(String intitule, Long eleveId, Long classRoomId) {
+public record RemarqueRequest(String intitule, Long eleveId, Long classRoomId, RemarqueType type) {
 }

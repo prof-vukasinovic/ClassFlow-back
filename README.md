@@ -37,6 +37,16 @@ POST /remarques
 PUT /remarques/{id}
 DELETE /remarques/{id}
 
+GET /devoirs-non-faits
+GET /classrooms/{classRoomId}/devoirs-non-faits
+GET /eleves/{eleveId}/devoirs-non-faits
+POST /devoirs-non-faits
+
+GET /bavardages
+GET /classrooms/{classRoomId}/bavardages
+GET /eleves/{eleveId}/bavardages
+POST /bavardages
+
 # Exemples de body
 
 ## Creer une classroom
@@ -127,7 +137,8 @@ POST /remarques
 {
 	"intitule": "Participation active",
 	"eleveId": 1,
-	"classRoomId": 1
+	"classRoomId": 1,
+	"type": "REMARQUE_GENERALE"
 }
 ```
 
@@ -136,6 +147,32 @@ PUT /remarques/{id}
 {
 	"intitule": "Bon travail",
 	"eleveId": 1,
+	"classRoomId": 1,
+	"type": "REMARQUE_GENERALE"
+}
+```
+
+## Devoirs non faits
+POST /devoirs-non-faits
+```json
+{
+	"intitule": "Devoir de mathématiques non rendu",
+	"eleveId": 3,
 	"classRoomId": 1
 }
 ```
+
+## Bavardages
+POST /bavardages
+```json
+{
+	"intitule": "Discussion pendant le cours",
+	"eleveId": 5,
+	"classRoomId": 1
+}
+```
+
+**Types de remarques disponibles :**
+- `REMARQUE_GENERALE` : remarque classique (par défaut)
+- `DEVOIR_NON_FAIT` : devoir non rendu ou non fait
+- `BAVARDAGE` : bavardage en classe

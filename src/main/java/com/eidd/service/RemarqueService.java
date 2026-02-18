@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import com.eidd.dto.RemarqueDto;
 import com.eidd.dto.RemarqueRequest;
 import com.eidd.dto.RemarqueStats;
+import com.eidd.dto.RemarqueType;
 import com.eidd.model.ClassRoom;
 import com.eidd.model.Eleve;
 
@@ -48,10 +49,33 @@ public class RemarqueService {
             .toList();
     }
 
+    public List<RemarqueDto> listByType(RemarqueType type) {
+        return remarques.values().stream()
+            .filter(remarque -> remarque.type() == type)
+            .toList();
+    }
+
+    public List<RemarqueDto> listByEleveIdAndType(long eleveId, RemarqueType type) {
+        return remarques.values().stream()
+            .filter(remarque -> remarque.eleveId() != null && remarque.eleveId() == eleveId && remarque.type() == type)
+            .toList();
+    }
+
+    public List<RemarqueDto> listByClassRoomIdAndType(long classRoomId, RemarqueType type) {
+        return remarques.values().stream()
+            .filter(remarque -> remarque.classRoomId() != null && remarque.classRoomId() == classRoomId && remarque.type() == type)
+            .toList();
+    }
+
     public RemarqueDto create(RemarqueRequest request) {
+        return create(request, null);
+    }
+
+    public RemarqueDto create(RemarqueRequest request, RemarqueType forcedType) {
         long id = idGenerator.getAndIncrement();
         Instant now = Instant.now();
-        RemarqueDto created = new RemarqueDto(id, normalizeIntitule(request.intitule()), request.eleveId(), request.classRoomId(), now);
+        RemarqueType type = forcedType != null ? forcedType : (request.type() != null ? request.type() : RemarqueType.REMARQUE_GENERALE);
+        RemarqueDto created = new RemarqueDto(id, normalizeIntitule(request.intitule()), request.eleveId(), request.classRoomId(), type, now);
         remarques.put(id, created);
         return created;
     }
@@ -65,8 +89,9 @@ public class RemarqueService {
         String intitule = request.intitule() == null ? existing.intitule() : normalizeIntitule(request.intitule());
         Long eleveId = request.eleveId() == null ? existing.eleveId() : request.eleveId();
         Long classRoomId = request.classRoomId() == null ? existing.classRoomId() : request.classRoomId();
+        RemarqueType type = request.type() == null ? existing.type() : request.type();
 
-        RemarqueDto updated = new RemarqueDto(id, intitule, eleveId, classRoomId, existing.createdAt());
+        RemarqueDto updated = new RemarqueDto(id, intitule, eleveId, classRoomId, type, existing.createdAt());
         remarques.put(id, updated);
         return updated;
     }
@@ -132,15 +157,24 @@ public class RemarqueService {
 
         for (ClassRoom classRoom : classRooms) {
             List<Eleve> eleves = classRoom.getEleves().getEleves();
-            addSeedRemarque(classRoom.getId(), eleves, 0, "Participation active");
-            addSeedRemarque(classRoom.getId(), eleves, 1, "Bon travail");
+            // Remarques générales
+            addSeedRemarque(classRoom.getId(), eleves, 0, "Participation active", RemarqueType.REMARQUE_GENERALE);
+            addSeedRemarque(classRoom.getId(), eleves, 1, "Bon travail", RemarqueType.REMARQUE_GENERALE);
+            
+            // Devoirs non faits
+            addSeedRemarque(classRoom.getId(), eleves, 0, "Devoir de mathématiques non rendu", RemarqueType.DEVOIR_NON_FAIT);
+            addSeedRemarque(classRoom.getId(), eleves, 2, "Exercices page 42 non faits", RemarqueType.DEVOIR_NON_FAIT);
+            
+            // Bavardages
+            addSeedRemarque(classRoom.getId(), eleves, 1, "Discussion pendant le cours", RemarqueType.BAVARDAGE);
+            addSeedRemarque(classRoom.getId(), eleves, 3, "Bavardage répété", RemarqueType.BAVARDAGE);
         }
     }
 
-    private void addSeedRemarque(long classRoomId, List<Eleve> eleves, int index, String intitule) {
+    private void addSeedRemarque(long classRoomId, List<Eleve> eleves, int index, String intitule, RemarqueType type) {
         if (eleves.size() > index) {
             Eleve eleve = eleves.get(index);
-            create(new RemarqueRequest(intitule, eleve.getId(), classRoomId));
+            create(new RemarqueRequest(intitule, eleve.getId(), classRoomId, null), type);
         }
     }
 }

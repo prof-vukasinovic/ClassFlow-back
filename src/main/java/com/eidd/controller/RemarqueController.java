@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.eidd.dto.RemarqueDto;
 import com.eidd.dto.RemarqueRequest;
 import com.eidd.dto.RemarqueStats;
+import com.eidd.dto.RemarqueType;
 import com.eidd.service.ClassRoomPlanService;
 import com.eidd.service.RemarqueService;
 
@@ -127,6 +128,86 @@ public class RemarqueController {
         return ResponseEntity.noContent().build();
     }
 
+    // ========== Endpoints spécifiques pour les devoirs non faits ==========
+
+    @GetMapping("/devoirs-non-faits")
+    public List<RemarqueDto> listDevoirsNonFaits() {
+        return remarqueService.listByType(RemarqueType.DEVOIR_NON_FAIT);
+    }
+
+    @GetMapping("/classrooms/{classRoomId}/devoirs-non-faits")
+    public ResponseEntity<List<RemarqueDto>> getClassRoomDevoirsNonFaits(@PathVariable long classRoomId) {
+        if (!classRoomExists(classRoomId)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(remarqueService.listByClassRoomIdAndType(classRoomId, RemarqueType.DEVOIR_NON_FAIT));
+    }
+
+    @GetMapping("/eleves/{eleveId}/devoirs-non-faits")
+    public ResponseEntity<List<RemarqueDto>> getEleveDevoirsNonFaits(@PathVariable long eleveId) {
+        if (!eleveExists(eleveId)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(remarqueService.listByEleveIdAndType(eleveId, RemarqueType.DEVOIR_NON_FAIT));
+    }
+
+    @PostMapping("/devoirs-non-faits")
+    public ResponseEntity<?> createDevoirNonFait(@RequestBody RemarqueRequest request) {
+        if (request == null || isBlank(request.intitule())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "intitule is required"));
+        }
+        if (request.classRoomId() != null && !classRoomExists(request.classRoomId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "classroom not found"));
+        }
+        if (request.eleveId() != null && !eleveExists(request.eleveId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "eleve not found"));
+        }
+
+        RemarqueDto created = remarqueService.create(request, RemarqueType.DEVOIR_NON_FAIT);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    // ========== Endpoints spécifiques pour les bavardages ==========
+
+    @GetMapping("/bavardages")
+    public List<RemarqueDto> listBavardages() {
+        return remarqueService.listByType(RemarqueType.BAVARDAGE);
+    }
+
+    @GetMapping("/classrooms/{classRoomId}/bavardages")
+    public ResponseEntity<List<RemarqueDto>> getClassRoomBavardages(@PathVariable long classRoomId) {
+        if (!classRoomExists(classRoomId)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(remarqueService.listByClassRoomIdAndType(classRoomId, RemarqueType.BAVARDAGE));
+    }
+
+    @GetMapping("/eleves/{eleveId}/bavardages")
+    public ResponseEntity<List<RemarqueDto>> getEleveBavardages(@PathVariable long eleveId) {
+        if (!eleveExists(eleveId)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(remarqueService.listByEleveIdAndType(eleveId, RemarqueType.BAVARDAGE));
+    }
+
+    @PostMapping("/bavardages")
+    public ResponseEntity<?> createBavardage(@RequestBody RemarqueRequest request) {
+        if (request == null || isBlank(request.intitule())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "intitule is required"));
+        }
+        if (request.classRoomId() != null && !classRoomExists(request.classRoomId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "classroom not found"));
+        }
+        if (request.eleveId() != null && !eleveExists(request.eleveId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "eleve not found"));
+        }
+
+        RemarqueDto created = remarqueService.create(request, RemarqueType.BAVARDAGE);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    // ========== Méthodes privées helpers ==========
+
     private boolean classRoomExists(long classRoomId) {
         return planService.getClassRoom(classRoomId) != null;
     }
@@ -151,6 +232,6 @@ public class RemarqueController {
     }
 
     private boolean hasUpdates(RemarqueRequest request) {
-        return request.intitule() != null || request.eleveId() != null || request.classRoomId() != null;
+        return request.intitule() != null || request.eleveId() != null || request.classRoomId() != null || request.type() != null;
     }
 }
