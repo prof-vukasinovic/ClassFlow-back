@@ -1,5 +1,6 @@
 package com.eidd.controller;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
@@ -31,13 +32,13 @@ public class RemarqueController {
     }
 
     @GetMapping("/remarques")
-    public List<RemarqueDto> listRemarques() {
-        return remarqueService.listAll();
+    public List<RemarqueDto> listRemarques(Principal principal) {
+        return remarqueService.listAll(owner(principal));
     }
 
     @GetMapping("/remarques/{id}")
-    public ResponseEntity<RemarqueDto> getRemarque(@PathVariable long id) {
-        RemarqueDto remarque = remarqueService.getById(id);
+    public ResponseEntity<RemarqueDto> getRemarque(@PathVariable long id, Principal principal) {
+        RemarqueDto remarque = remarqueService.getById(owner(principal), id);
         if (remarque == null) {
             return ResponseEntity.notFound().build();
         }
@@ -45,75 +46,76 @@ public class RemarqueController {
     }
 
     @GetMapping("/classrooms/{classRoomId}/remarques")
-    public ResponseEntity<List<RemarqueDto>> getClassRoomRemarques(@PathVariable long classRoomId) {
-        if (!classRoomExists(classRoomId)) {
+    public ResponseEntity<List<RemarqueDto>> getClassRoomRemarques(@PathVariable long classRoomId, Principal principal) {
+        if (!classRoomExists(owner(principal), classRoomId)) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(remarqueService.listByClassRoomId(classRoomId));
+        return ResponseEntity.ok(remarqueService.listByClassRoomId(owner(principal), classRoomId));
     }
 
     @GetMapping("/eleves/{eleveId}/remarques")
-    public ResponseEntity<List<RemarqueDto>> getEleveRemarques(@PathVariable long eleveId) {
-        if (!eleveExists(eleveId)) {
+    public ResponseEntity<List<RemarqueDto>> getEleveRemarques(@PathVariable long eleveId, Principal principal) {
+        if (!eleveExists(owner(principal), eleveId)) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(remarqueService.listByEleveId(eleveId));
+        return ResponseEntity.ok(remarqueService.listByEleveId(owner(principal), eleveId));
     }
 
     @GetMapping("/classrooms/{classRoomId}/eleves/{eleveId}/remarques")
     public ResponseEntity<List<RemarqueDto>> getClassRoomEleveRemarques(
         @PathVariable long classRoomId,
-        @PathVariable long eleveId
+        @PathVariable long eleveId,
+        Principal principal
     ) {
-        if (!classRoomExists(classRoomId)) {
+        if (!classRoomExists(owner(principal), classRoomId)) {
             return ResponseEntity.notFound().build();
         }
-        if (!eleveInClassRoom(classRoomId, eleveId)) {
+        if (!eleveInClassRoom(owner(principal), classRoomId, eleveId)) {
             return ResponseEntity.notFound().build();
         }
-        List<RemarqueDto> remarques = remarqueService.listByEleveId(eleveId).stream()
+        List<RemarqueDto> remarques = remarqueService.listByEleveId(owner(principal), eleveId).stream()
             .filter(remarque -> remarque.classRoomId() == null || remarque.classRoomId() == classRoomId)
             .toList();
         return ResponseEntity.ok(remarques);
     }
 
     @GetMapping("/remarques/stats")
-    public RemarqueStats getStats() {
-        return remarqueService.stats();
+    public RemarqueStats getStats(Principal principal) {
+        return remarqueService.stats(owner(principal));
     }
 
     @PostMapping("/remarques")
-    public ResponseEntity<?> createRemarque(@RequestBody RemarqueRequest request) {
+    public ResponseEntity<?> createRemarque(@RequestBody RemarqueRequest request, Principal principal) {
         if (request == null || isBlank(request.intitule())) {
             return ResponseEntity.badRequest().body(Map.of("error", "intitule is required"));
         }
-        if (request.classRoomId() != null && !classRoomExists(request.classRoomId())) {
+        if (request.classRoomId() != null && !classRoomExists(owner(principal), request.classRoomId())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "classroom not found"));
         }
-        if (request.eleveId() != null && !eleveExists(request.eleveId())) {
+        if (request.eleveId() != null && !eleveExists(owner(principal), request.eleveId())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "eleve not found"));
         }
 
-        RemarqueDto created = remarqueService.create(request);
+        RemarqueDto created = remarqueService.create(owner(principal), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/remarques/{id}")
-    public ResponseEntity<?> updateRemarque(@PathVariable long id, @RequestBody RemarqueRequest request) {
+    public ResponseEntity<?> updateRemarque(@PathVariable long id, @RequestBody RemarqueRequest request, Principal principal) {
         if (request == null || (!hasUpdates(request))) {
             return ResponseEntity.badRequest().body(Map.of("error", "at least one field is required"));
         }
         if (request.intitule() != null && isBlank(request.intitule())) {
             return ResponseEntity.badRequest().body(Map.of("error", "intitule cannot be blank"));
         }
-        if (request.classRoomId() != null && !classRoomExists(request.classRoomId())) {
+        if (request.classRoomId() != null && !classRoomExists(owner(principal), request.classRoomId())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "classroom not found"));
         }
-        if (request.eleveId() != null && !eleveExists(request.eleveId())) {
+        if (request.eleveId() != null && !eleveExists(owner(principal), request.eleveId())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "eleve not found"));
         }
 
-        RemarqueDto updated = remarqueService.update(id, request);
+        RemarqueDto updated = remarqueService.update(owner(principal), id, request);
         if (updated == null) {
             return ResponseEntity.notFound().build();
         }
@@ -121,8 +123,8 @@ public class RemarqueController {
     }
 
     @DeleteMapping("/remarques/{id}")
-    public ResponseEntity<Void> deleteRemarque(@PathVariable long id) {
-        if (!remarqueService.delete(id)) {
+    public ResponseEntity<Void> deleteRemarque(@PathVariable long id, Principal principal) {
+        if (!remarqueService.delete(owner(principal), id)) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
@@ -131,100 +133,104 @@ public class RemarqueController {
     // ========== Endpoints spécifiques pour les devoirs non faits ==========
 
     @GetMapping("/devoirs-non-faits")
-    public List<RemarqueDto> listDevoirsNonFaits() {
-        return remarqueService.listByType(RemarqueType.DEVOIR_NON_FAIT);
+    public List<RemarqueDto> listDevoirsNonFaits(Principal principal) {
+        return remarqueService.listByType(owner(principal), RemarqueType.DEVOIR_NON_FAIT);
     }
 
     @GetMapping("/classrooms/{classRoomId}/devoirs-non-faits")
-    public ResponseEntity<List<RemarqueDto>> getClassRoomDevoirsNonFaits(@PathVariable long classRoomId) {
-        if (!classRoomExists(classRoomId)) {
+    public ResponseEntity<List<RemarqueDto>> getClassRoomDevoirsNonFaits(@PathVariable long classRoomId, Principal principal) {
+        if (!classRoomExists(owner(principal), classRoomId)) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(remarqueService.listByClassRoomIdAndType(classRoomId, RemarqueType.DEVOIR_NON_FAIT));
+        return ResponseEntity.ok(remarqueService.listByClassRoomIdAndType(owner(principal), classRoomId, RemarqueType.DEVOIR_NON_FAIT));
     }
 
     @GetMapping("/eleves/{eleveId}/devoirs-non-faits")
-    public ResponseEntity<List<RemarqueDto>> getEleveDevoirsNonFaits(@PathVariable long eleveId) {
-        if (!eleveExists(eleveId)) {
+    public ResponseEntity<List<RemarqueDto>> getEleveDevoirsNonFaits(@PathVariable long eleveId, Principal principal) {
+        if (!eleveExists(owner(principal), eleveId)) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(remarqueService.listByEleveIdAndType(eleveId, RemarqueType.DEVOIR_NON_FAIT));
+        return ResponseEntity.ok(remarqueService.listByEleveIdAndType(owner(principal), eleveId, RemarqueType.DEVOIR_NON_FAIT));
     }
 
     @PostMapping("/devoirs-non-faits")
-    public ResponseEntity<?> createDevoirNonFait(@RequestBody RemarqueRequest request) {
+    public ResponseEntity<?> createDevoirNonFait(@RequestBody RemarqueRequest request, Principal principal) {
         if (request == null || isBlank(request.intitule())) {
             return ResponseEntity.badRequest().body(Map.of("error", "intitule is required"));
         }
-        if (request.classRoomId() != null && !classRoomExists(request.classRoomId())) {
+        if (request.classRoomId() != null && !classRoomExists(owner(principal), request.classRoomId())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "classroom not found"));
         }
-        if (request.eleveId() != null && !eleveExists(request.eleveId())) {
+        if (request.eleveId() != null && !eleveExists(owner(principal), request.eleveId())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "eleve not found"));
         }
 
-        RemarqueDto created = remarqueService.create(request, RemarqueType.DEVOIR_NON_FAIT);
+        RemarqueDto created = remarqueService.create(owner(principal), request, RemarqueType.DEVOIR_NON_FAIT);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     // ========== Endpoints spécifiques pour les bavardages ==========
 
     @GetMapping("/bavardages")
-    public List<RemarqueDto> listBavardages() {
-        return remarqueService.listByType(RemarqueType.BAVARDAGE);
+    public List<RemarqueDto> listBavardages(Principal principal) {
+        return remarqueService.listByType(owner(principal), RemarqueType.BAVARDAGE);
     }
 
     @GetMapping("/classrooms/{classRoomId}/bavardages")
-    public ResponseEntity<List<RemarqueDto>> getClassRoomBavardages(@PathVariable long classRoomId) {
-        if (!classRoomExists(classRoomId)) {
+    public ResponseEntity<List<RemarqueDto>> getClassRoomBavardages(@PathVariable long classRoomId, Principal principal) {
+        if (!classRoomExists(owner(principal), classRoomId)) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(remarqueService.listByClassRoomIdAndType(classRoomId, RemarqueType.BAVARDAGE));
+        return ResponseEntity.ok(remarqueService.listByClassRoomIdAndType(owner(principal), classRoomId, RemarqueType.BAVARDAGE));
     }
 
     @GetMapping("/eleves/{eleveId}/bavardages")
-    public ResponseEntity<List<RemarqueDto>> getEleveBavardages(@PathVariable long eleveId) {
-        if (!eleveExists(eleveId)) {
+    public ResponseEntity<List<RemarqueDto>> getEleveBavardages(@PathVariable long eleveId, Principal principal) {
+        if (!eleveExists(owner(principal), eleveId)) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(remarqueService.listByEleveIdAndType(eleveId, RemarqueType.BAVARDAGE));
+        return ResponseEntity.ok(remarqueService.listByEleveIdAndType(owner(principal), eleveId, RemarqueType.BAVARDAGE));
     }
 
     @PostMapping("/bavardages")
-    public ResponseEntity<?> createBavardage(@RequestBody RemarqueRequest request) {
+    public ResponseEntity<?> createBavardage(@RequestBody RemarqueRequest request, Principal principal) {
         if (request == null || isBlank(request.intitule())) {
             return ResponseEntity.badRequest().body(Map.of("error", "intitule is required"));
         }
-        if (request.classRoomId() != null && !classRoomExists(request.classRoomId())) {
+        if (request.classRoomId() != null && !classRoomExists(owner(principal), request.classRoomId())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "classroom not found"));
         }
-        if (request.eleveId() != null && !eleveExists(request.eleveId())) {
+        if (request.eleveId() != null && !eleveExists(owner(principal), request.eleveId())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "eleve not found"));
         }
 
-        RemarqueDto created = remarqueService.create(request, RemarqueType.BAVARDAGE);
+        RemarqueDto created = remarqueService.create(owner(principal), request, RemarqueType.BAVARDAGE);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     // ========== Méthodes privées helpers ==========
 
-    private boolean classRoomExists(long classRoomId) {
-        return planService.getClassRoom(classRoomId) != null;
+    private boolean classRoomExists(String owner, long classRoomId) {
+        return planService.getClassRoom(owner, classRoomId) != null;
     }
 
-    private boolean eleveExists(long eleveId) {
-        return planService.getClassRooms().stream()
+    private boolean eleveExists(String owner, long eleveId) {
+        return planService.getClassRooms(owner).stream()
             .flatMap(cr -> cr.getEleves().getEleves().stream())
             .anyMatch(eleve -> eleve.getId() == eleveId);
     }
 
-    private boolean eleveInClassRoom(long classRoomId, long eleveId) {
-        var classRoom = planService.getClassRoom(classRoomId);
+    private boolean eleveInClassRoom(String owner, long classRoomId, long eleveId) {
+        var classRoom = planService.getClassRoom(owner, classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return false;
         }
         return classRoom.getEleves().getEleves().stream()
             .anyMatch(eleve -> eleve.getId() == eleveId);
+    }
+
+    private String owner(Principal principal) {
+        return principal == null ? "anonymous" : principal.getName();
     }
 
     private boolean isBlank(String value) {

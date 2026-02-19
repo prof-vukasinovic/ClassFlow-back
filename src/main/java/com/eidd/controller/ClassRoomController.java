@@ -1,5 +1,6 @@
 package com.eidd.controller;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
@@ -60,73 +61,74 @@ public class ClassRoomController {
     }
 
     @PostMapping("/classrooms")
-    public ResponseEntity<?> createClassRoom(@RequestBody ClassRoomCreateRequest request) {
+    public ResponseEntity<?> createClassRoom(@RequestBody ClassRoomCreateRequest request, Principal principal) {
         if (request == null || request.nom() == null || request.nom().trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "nom is required"));
         }
 
-        ClassRoom created = planService.createNewClassRoom(request.nom());
+        ClassRoom created = planService.createNewClassRoom(owner(principal), request.nom());
         if (created == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "unable to create classroom"));
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(toClassRoomRemarques(created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toClassRoomRemarques(owner(principal), created));
     }
 
     @GetMapping("/classrooms")
-    public List<ClassRoomRemarquesDto> getClassRooms() {
-        return planService.getClassRooms().stream()
-            .map(this::toClassRoomRemarques)
+    public List<ClassRoomRemarquesDto> getClassRooms(Principal principal) {
+        String owner = owner(principal);
+        return planService.getClassRooms(owner).stream()
+            .map(classRoom -> toClassRoomRemarques(owner, classRoom))
             .toList();
     }
 
     @GetMapping("/classrooms/{id}")
-    public ResponseEntity<ClassRoomRemarquesDto> getClassRoom(@PathVariable long id) {
-        ClassRoom classRoom = planService.getClassRoom(id);
+    public ResponseEntity<ClassRoomRemarquesDto> getClassRoom(@PathVariable long id, Principal principal) {
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(toClassRoomRemarques(classRoom));
+        return ResponseEntity.ok(toClassRoomRemarques(owner(principal), classRoom));
     }
 
     @PutMapping("/classrooms/{id}")
-    public ResponseEntity<?> updateClassRoom(@PathVariable long id, @RequestBody ClassRoomUpdateRequest request) {
+    public ResponseEntity<?> updateClassRoom(@PathVariable long id, @RequestBody ClassRoomUpdateRequest request, Principal principal) {
         if (request == null || request.nom() == null || request.nom().trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "nom is required"));
         }
 
-        ClassRoom updated = planService.updateClassRoom(id, request.nom());
+        ClassRoom updated = planService.updateClassRoom(owner(principal), id, request.nom());
         if (updated == null) {
             return ResponseEntity.notFound().build();
         }
 
-        return ResponseEntity.ok(toClassRoomRemarques(updated));
+        return ResponseEntity.ok(toClassRoomRemarques(owner(principal), updated));
     }
 
     @GetMapping("/classrooms/{id}/eleves")
-    public ResponseEntity<List<EleveRemarquesDto>> getEleves(@PathVariable long id) {
-        ClassRoom classRoom = planService.getClassRoom(id);
+    public ResponseEntity<List<EleveRemarquesDto>> getEleves(@PathVariable long id, Principal principal) {
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
         List<EleveRemarquesDto> eleves = classRoom.getEleves().getEleves().stream()
-            .map(eleve -> toEleveRemarques(classRoom.getId(), eleve))
+            .map(eleve -> toEleveRemarques(owner(principal), classRoom.getId(), eleve))
             .toList();
         return ResponseEntity.ok(eleves);
     }
 
     @GetMapping("/classrooms/{id}/tables")
-    public ResponseEntity<List<Table>> getTables(@PathVariable long id) {
-        ClassRoom classRoom = planService.getClassRoom(id);
+    public ResponseEntity<List<Table>> getTables(@PathVariable long id, Principal principal) {
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(planService.getTables(id));
+        return ResponseEntity.ok(planService.getTables(owner(principal), id));
     }
 
     @GetMapping("/classrooms/{id}/plan")
-    public ResponseEntity<ClassRoomPlan> getPlan(@PathVariable long id) {
-        ClassRoom classRoom = planService.getClassRoom(id);
+    public ResponseEntity<ClassRoomPlan> getPlan(@PathVariable long id, Principal principal) {
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
@@ -134,28 +136,28 @@ public class ClassRoomController {
             .map(table -> new TablePlanDto(
                 table.getPosition().getX(),
                 table.getPosition().getY(),
-                findEleveForTable(classRoom, table)))
+                findEleveForTable(owner(principal), classRoom, table)))
             .toList();
         return ResponseEntity.ok(new ClassRoomPlan(classRoom.getId(), classRoom.getNom(), tables));
     }
 
     @PostMapping("/classrooms/import-csv")
-    public ResponseEntity<?> importClassRoomFromCsv(@RequestBody String csvContent) {
+    public ResponseEntity<?> importClassRoomFromCsv(@RequestBody String csvContent, Principal principal) {
         if (csvContent == null || csvContent.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "CSV content is required"));
         }
 
-        ClassRoom imported = planService.importFromCsv(csvContent);
+        ClassRoom imported = planService.importFromCsv(owner(principal), csvContent);
         if (imported == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid CSV format"));
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(toClassRoomRemarques(imported));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toClassRoomRemarques(owner(principal), imported));
     }
 
     @GetMapping("/classrooms/{id}/export-csv")
-    public ResponseEntity<String> exportClassRoomToCsv(@PathVariable long id) {
-        String csvContent = planService.exportToCsv(id);
+    public ResponseEntity<String> exportClassRoomToCsv(@PathVariable long id, Principal principal) {
+        String csvContent = planService.exportToCsv(owner(principal), id);
         if (csvContent == null) {
             return ResponseEntity.notFound().build();
         }
@@ -166,12 +168,12 @@ public class ClassRoomController {
     }
 
     @PostMapping("/classrooms/{id}/eleves")
-    public ResponseEntity<?> createEleve(@PathVariable long id, @RequestBody EleveCreateRequest request) {
+    public ResponseEntity<?> createEleve(@PathVariable long id, @RequestBody EleveCreateRequest request, Principal principal) {
         if (request == null || isBlank(request.nom()) || isBlank(request.prenom())) {
             return ResponseEntity.badRequest().body(Map.of("error", "nom and prenom are required"));
         }
 
-        ClassRoom classRoom = planService.getClassRoom(id);
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
@@ -185,42 +187,43 @@ public class ClassRoomController {
             }
         }
 
-        Eleve eleve = planService.createEleve(id, request.nom().trim(), request.prenom().trim(), tableIndex);
+        Eleve eleve = planService.createEleve(owner(principal), id, request.nom().trim(), request.prenom().trim(), tableIndex);
         if (eleve == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid eleve"));
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(toEleveRemarques(id, eleve));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toEleveRemarques(owner(principal), id, eleve));
     }
 
     @PutMapping("/classrooms/{classRoomId}/eleves/{eleveId}")
     public ResponseEntity<?> updateEleve(@PathVariable long classRoomId, 
             @PathVariable long eleveId,
-            @RequestBody EleveUpdateRequest request) {
+            @RequestBody EleveUpdateRequest request,
+            Principal principal) {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "update payload is required"));
         }
 
-        ClassRoom classRoom = planService.getClassRoom(classRoomId);
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), classRoomId);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
 
-        Eleve updated = planService.updateEleve(classRoomId, eleveId, request.nom(), request.prenom());
+        Eleve updated = planService.updateEleve(owner(principal), classRoomId, eleveId, request.nom(), request.prenom());
         if (updated == null) {
             return ResponseEntity.notFound().build();
         }
 
-        return ResponseEntity.ok(toEleveRemarques(classRoomId, updated));
+        return ResponseEntity.ok(toEleveRemarques(owner(principal), classRoomId, updated));
     }
 
     @PostMapping("/classrooms/{id}/tables")
-    public ResponseEntity<?> createTable(@PathVariable long id, @RequestBody TableCreateRequest request) {
+    public ResponseEntity<?> createTable(@PathVariable long id, @RequestBody TableCreateRequest request, Principal principal) {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "table position is required"));
         }
 
-        Table table = planService.createTable(id, request.x(), request.y());
+        Table table = planService.createTable(owner(principal), id, request.x(), request.y());
         if (table == null) {
             return ResponseEntity.notFound().build();
         }
@@ -228,58 +231,58 @@ public class ClassRoomController {
     }
 
     @PostMapping("/classrooms/{id}/groupes/aleatoire")
-    public ResponseEntity<?> createGroupesAleatoires(@PathVariable long id, @RequestBody GroupeRandomCreateRequest request) {
+    public ResponseEntity<?> createGroupesAleatoires(@PathVariable long id, @RequestBody GroupeRandomCreateRequest request, Principal principal) {
         if (request == null || request.groupCount() <= 0) {
             return ResponseEntity.badRequest().body(Map.of("error", "groupCount must be greater than 0"));
         }
 
-        ClassRoom classRoom = planService.getClassRoom(id);
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
 
-        List<GroupeEntry> created = planService.createGroupesAleatoires(id, request.groupCount());
+        List<GroupeEntry> created = planService.createGroupesAleatoires(owner(principal), id, request.groupCount());
         if (created == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "unable to create random groups"));
         }
 
         List<GroupeDto> response = created.stream()
-            .map(entry -> toGroupeDto(classRoom.getId(), entry))
+            .map(entry -> toGroupeDto(owner(principal), classRoom.getId(), entry))
             .toList();
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/classrooms/{id}/groupes")
-    public ResponseEntity<?> createGroupes(@PathVariable long id, @RequestBody GroupeCreateRequest request) {
+    public ResponseEntity<?> createGroupes(@PathVariable long id, @RequestBody GroupeCreateRequest request, Principal principal) {
         if (request == null || request.groupes() == null || request.groupes().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "groupes are required"));
         }
 
-        ClassRoom classRoom = planService.getClassRoom(id);
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
 
-        List<GroupeEntry> created = planService.createGroupes(id, request.groupes());
+        List<GroupeEntry> created = planService.createGroupes(owner(principal), id, request.groupes());
         if (created == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "unable to create groups"));
         }
 
         List<GroupeDto> response = created.stream()
-            .map(entry -> toGroupeDto(classRoom.getId(), entry))
+            .map(entry -> toGroupeDto(owner(principal), classRoom.getId(), entry))
             .toList();
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/classrooms/{id}/groupes")
-    public ResponseEntity<List<GroupeDto>> getGroupes(@PathVariable long id) {
-        ClassRoom classRoom = planService.getClassRoom(id);
+    public ResponseEntity<List<GroupeDto>> getGroupes(@PathVariable long id, Principal principal) {
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
 
-        List<GroupeDto> response = planService.getGroupes(id).stream()
-            .map(entry -> toGroupeDto(classRoom.getId(), entry))
+        List<GroupeDto> response = planService.getGroupes(owner(principal), id).stream()
+            .map(entry -> toGroupeDto(owner(principal), classRoom.getId(), entry))
             .toList();
         return ResponseEntity.ok(response);
     }
@@ -287,33 +290,34 @@ public class ClassRoomController {
     @PutMapping("/classrooms/{classRoomId}/groupes/{groupeId}")
     public ResponseEntity<?> updateGroupe(@PathVariable long classRoomId,
             @PathVariable long groupeId,
-            @RequestBody GroupeUpdateRequest request) {
+            @RequestBody GroupeUpdateRequest request,
+            Principal principal) {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "update payload is required"));
         }
 
-        ClassRoom classRoom = planService.getClassRoom(classRoomId);
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), classRoomId);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
 
-        boolean groupeExists = planService.getGroupes(classRoomId).stream()
+        boolean groupeExists = planService.getGroupes(owner(principal), classRoomId).stream()
             .anyMatch(entry -> entry.id() == groupeId);
         if (!groupeExists) {
             return ResponseEntity.notFound().build();
         }
 
-        GroupeEntry updated = planService.updateGroupe(classRoomId, groupeId, request.addEleveIds(), request.removeEleveIds());
+        GroupeEntry updated = planService.updateGroupe(owner(principal), classRoomId, groupeId, request.addEleveIds(), request.removeEleveIds());
         if (updated == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "unable to update group"));
         }
 
-        return ResponseEntity.ok(toGroupeDto(classRoom.getId(), updated));
+        return ResponseEntity.ok(toGroupeDto(owner(principal), classRoom.getId(), updated));
     }
 
     @DeleteMapping("/classrooms/{id}")
-    public ResponseEntity<Void> deleteClassRoom(@PathVariable long id) {
-        ClassRoom classRoom = planService.getClassRoom(id);
+    public ResponseEntity<Void> deleteClassRoom(@PathVariable long id, Principal principal) {
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
         if (classRoom == null) {
             return ResponseEntity.notFound().build();
         }
@@ -322,64 +326,68 @@ public class ClassRoomController {
             ? List.of()
             : classRoom.getEleves().getEleves().stream().map(Eleve::getId).toList();
 
-        planService.deleteClassRoom(id);
-        remarqueService.deleteByClassRoomId(id);
-        remarqueService.deleteByEleveIds(eleveIds);
+        planService.deleteClassRoom(owner(principal), id);
+        remarqueService.deleteByClassRoomId(owner(principal), id);
+        remarqueService.deleteByEleveIds(owner(principal), eleveIds);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/classrooms/{classRoomId}/eleves/{eleveId}")
-    public ResponseEntity<Void> deleteEleve(@PathVariable long classRoomId, @PathVariable long eleveId) {
-        if (!planService.deleteEleve(classRoomId, eleveId)) {
+    public ResponseEntity<Void> deleteEleve(@PathVariable long classRoomId, @PathVariable long eleveId, Principal principal) {
+        if (!planService.deleteEleve(owner(principal), classRoomId, eleveId)) {
             return ResponseEntity.notFound().build();
         }
-        remarqueService.deleteByEleveId(eleveId);
+        remarqueService.deleteByEleveId(owner(principal), eleveId);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/classrooms/{classRoomId}/tables/{tableIndex}")
-    public ResponseEntity<Void> deleteTable(@PathVariable long classRoomId, @PathVariable int tableIndex) {
-        if (!planService.deleteTableByIndex(classRoomId, tableIndex)) {
+    public ResponseEntity<Void> deleteTable(@PathVariable long classRoomId, @PathVariable int tableIndex, Principal principal) {
+        if (!planService.deleteTableByIndex(owner(principal), classRoomId, tableIndex)) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/classrooms/{classRoomId}/groupes/{groupeId}")
-    public ResponseEntity<Void> deleteGroupe(@PathVariable long classRoomId, @PathVariable long groupeId) {
-        if (!planService.deleteGroupe(classRoomId, groupeId)) {
+    public ResponseEntity<Void> deleteGroupe(@PathVariable long classRoomId, @PathVariable long groupeId, Principal principal) {
+        if (!planService.deleteGroupe(owner(principal), classRoomId, groupeId)) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
     }
 
-    private ClassRoomRemarquesDto toClassRoomRemarques(ClassRoom classRoom) {
+    private ClassRoomRemarquesDto toClassRoomRemarques(String owner, ClassRoom classRoom) {
         List<EleveRemarquesDto> eleves = classRoom.getEleves().getEleves().stream()
-            .map(eleve -> toEleveRemarques(classRoom.getId(), eleve))
+            .map(eleve -> toEleveRemarques(owner, classRoom.getId(), eleve))
             .toList();
         return new ClassRoomRemarquesDto(classRoom.getId(), classRoom.getNom(), eleves, classRoom.getTables());
     }
 
-    private EleveRemarquesDto toEleveRemarques(long classRoomId, Eleve eleve) {
-        List<RemarqueDto> remarques = remarqueService.listByEleveId(eleve.getId()).stream()
+    private EleveRemarquesDto toEleveRemarques(String owner, long classRoomId, Eleve eleve) {
+        List<RemarqueDto> remarques = remarqueService.listByEleveId(owner, eleve.getId()).stream()
             .filter(remarque -> remarque.classRoomId() == null || remarque.classRoomId() == classRoomId)
             .toList();
         return new EleveRemarquesDto(eleve.getId(), eleve.getNom(), eleve.getPrenom(), remarques);
     }
 
-    private EleveRemarquesDto findEleveForTable(ClassRoom classRoom, Table table) {
+    private EleveRemarquesDto findEleveForTable(String owner, ClassRoom classRoom, Table table) {
         return classRoom.getEleves().getEleves().stream()
             .filter(eleve -> eleve.getTable() == table)
             .findFirst()
-            .map(eleve -> toEleveRemarques(classRoom.getId(), eleve))
+            .map(eleve -> toEleveRemarques(owner, classRoom.getId(), eleve))
             .orElse(null);
     }
 
-    private GroupeDto toGroupeDto(long classRoomId, GroupeEntry entry) {
+    private GroupeDto toGroupeDto(String owner, long classRoomId, GroupeEntry entry) {
         List<EleveRemarquesDto> eleves = entry.groupe().getEleves().stream()
-            .map(eleve -> toEleveRemarques(classRoomId, eleve))
+            .map(eleve -> toEleveRemarques(owner, classRoomId, eleve))
             .toList();
         return new GroupeDto(entry.id(), eleves);
+    }
+
+    private String owner(Principal principal) {
+        return principal == null ? "anonymous" : principal.getName();
     }
 
     private boolean isBlank(String value) {
