@@ -1,11 +1,56 @@
 # ClassFlow-back
 Le backend de l'appli ClassFlow (gestion de classe pour les professeurs)
 
+## Authentification
+
+### System multi-utilisateur
+ClassFlow-back utilise Spring Security pour l'authentification. Chaque utilisateur a ses propres données (classes, élèves, remarques) complètement isolées.
+
+### Connexion
+**Credentials par défaut :**
+- Username: `demo1` / Password: `demo1`
+- Username: `demo2` / Password: `demo2`
+- Username: `demo3` / Password: `demo3`
+
+**Configuration des utilisateurs**  
+Les utilisateurs sont définis dans [application.properties](src/main/resources/application.properties):
+```properties
+app.security.users=demo1:demo1:USER,demo2:demo2:USER,demo3:demo3:USER
+```
+Format: `username:password:ROLE[|ROLE2]`
+
+### Utilisation de l'API
+
+**Avec cURL (Basic Auth):**
+```bash
+curl -u demo1:demo1 http://localhost:8080/classrooms
+```
+
+**Avec Postman:**
+- Authorization → Type: "Basic Auth"
+- Username: `demo1`
+- Password: `demo1`
+
+**Avec navigateur:**
+- Accéder à un endpoint protégé → redirection automatique vers `/login`
+- Saisir username/password → cookie de session créé
+
+### Endpoints publics (sans authentification)
+- `GET /` `/login` `/version` `/ping`
+- `GET /swagger` `/swagger-ui/**`
+- `GET /actuator/health` `/actuator/info`
+
+Tous les autres endpoints nécessitent une authentification.
+
 # Liste des End Points
+
+## Endpoints publics
 GET /
 GET /ping
 GET /version
 
+## Endpoints protégés (authentification requise)
+GET /me
 GET /classrooms
 GET /classrooms/{id}
 GET /classrooms/{id}/eleves
@@ -48,6 +93,15 @@ GET /eleves/{eleveId}/bavardages
 POST /bavardages
 
 # Exemples de body
+
+## Obtenir l'utilisateur connecté
+GET /me
+```json
+{
+	"username": "demo1",
+	"roles": ["USER"]
+}
+```
 
 ## Creer une classroom
 POST /classrooms
@@ -176,3 +230,14 @@ POST /bavardages
 - `REMARQUE_GENERALE` : remarque classique (par défaut)
 - `DEVOIR_NON_FAIT` : devoir non rendu ou non fait
 - `BAVARDAGE` : bavardage en classe
+
+---
+
+## Isolation des données
+
+**Important :** Chaque utilisateur authentifié a son propre espace de données :
+- Les classes créées par `demo1` ne sont pas visibles par `demo2` ou `demo3`
+- Les remarques d'un utilisateur sont complètement séparées des autres
+- L'import/export CSV fonctionne uniquement sur les données de l'utilisateur connecté
+
+Cette isolation garantit la confidentialité des données de chaque enseignant.

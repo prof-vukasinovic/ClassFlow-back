@@ -20,15 +20,8 @@ import com.eidd.repositories.ClassRoomRespository;
 
 @Service
 public class ClassRoomPlanService {
-    private static final List<String[]> SEED_ELEVES = List.of(
-        new String[] { "Gdaiem", "Yassin" },
-        new String[] { "Adiveze", "Bastien" },
-        new String[] { "Lin", "Eve" },
-        new String[] { "Lege", "Hugo" },
-        new String[] { "Abbou", "Thierry" }
-    );
-    private final Map<Long, ClassRoom> classRooms = new LinkedHashMap<>();
-    private final Map<Long, Map<Long, Groupe>> classRoomGroupes = new LinkedHashMap<>();
+    private final Map<String, Map<Long, ClassRoom>> classRoomsByOwner = new LinkedHashMap<>();
+    private final Map<String, Map<Long, Map<Long, Groupe>>> classRoomGroupesByOwner = new LinkedHashMap<>();
     private final ClassRoomService classRoomService = new ClassRoomService();
     private final GroupeService groupeService = new GroupeService();
     private final TableService tableService = new TableService();
@@ -36,23 +29,36 @@ public class ClassRoomPlanService {
     private long groupeIdCounter = 1;
 
     public ClassRoomPlanService() {
-        seedSampleData();
     }
 
-    public List<ClassRoom> getClassRooms() {
-        return new ArrayList<>(classRooms.values());
+    private String normalizeOwner(String owner) {
+        return owner == null || owner.trim().isEmpty() ? "anonymous" : owner.trim();
     }
 
-    public ClassRoom getClassRoom(long id) {
-        return classRooms.get(id);
+    private Map<Long, ClassRoom> getClassRoomStore(String owner) {
+        String key = normalizeOwner(owner);
+        return classRoomsByOwner.computeIfAbsent(key, ignored -> new LinkedHashMap<>());
     }
 
-    public boolean deleteClassRoom(long id) {
-        classRoomGroupes.remove(id);
-        return classRooms.remove(id) != null;
+    private Map<Long, Map<Long, Groupe>> getGroupStore(String owner) {
+        String key = normalizeOwner(owner);
+        return classRoomGroupesByOwner.computeIfAbsent(key, ignored -> new LinkedHashMap<>());
     }
 
-    public ClassRoom createNewClassRoom(String nom) {
+    public List<ClassRoom> getClassRooms(String owner) {
+        return new ArrayList<>(getClassRoomStore(owner).values());
+    }
+
+    public ClassRoom getClassRoom(String owner, long id) {
+        return getClassRoomStore(owner).get(id);
+    }
+
+    public boolean deleteClassRoom(String owner, long id) {
+        getGroupStore(owner).remove(id);
+        return getClassRoomStore(owner).remove(id) != null;
+    }
+
+    public ClassRoom createNewClassRoom(String owner, String nom) {
         if (nom == null || nom.trim().isEmpty()) {
             return null;
         }
@@ -60,16 +66,16 @@ public class ClassRoomPlanService {
         ClassRoom classRoom = new ClassRoom(export);
         classRoom.setEleves(new Groupe());
         classRoom.setTables(new ArrayList<>());
-        classRooms.put(classRoom.getId(), classRoom);
+        getClassRoomStore(owner).put(classRoom.getId(), classRoom);
         return classRoom;
     }
 
-    public List<GroupeEntry> createGroupesAleatoires(long classRoomId, int groupCount) {
+    public List<GroupeEntry> createGroupesAleatoires(String owner, long classRoomId, int groupCount) {
         if (groupCount <= 0) {
             return null;
         }
 
-        ClassRoom classRoom = classRooms.get(classRoomId);
+        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return null;
         }
@@ -85,7 +91,7 @@ public class ClassRoomPlanService {
         int baseSize = eleves.size() / groupCount;
         int remainder = eleves.size() % groupCount;
 
-        Map<Long, Groupe> groupes = classRoomGroupes.computeIfAbsent(classRoomId, id -> new LinkedHashMap<>());
+        Map<Long, Groupe> groupes = getGroupStore(owner).computeIfAbsent(classRoomId, id -> new LinkedHashMap<>());
         List<GroupeEntry> created = new ArrayList<>();
 
         for (int i = 0; i < groupCount; i++) {
@@ -109,12 +115,12 @@ public class ClassRoomPlanService {
         return created;
     }
 
-    public List<GroupeEntry> createGroupes(long classRoomId, List<List<Long>> groupEleves) {
+    public List<GroupeEntry> createGroupes(String owner, long classRoomId, List<List<Long>> groupEleves) {
         if (groupEleves == null || groupEleves.isEmpty()) {
             return null;
         }
 
-        ClassRoom classRoom = classRooms.get(classRoomId);
+        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return null;
         }
@@ -130,7 +136,7 @@ public class ClassRoomPlanService {
         }
 
         Set<Long> used = new HashSet<>();
-        Map<Long, Groupe> groupes = classRoomGroupes.computeIfAbsent(classRoomId, id -> new LinkedHashMap<>());
+        Map<Long, Groupe> groupes = getGroupStore(owner).computeIfAbsent(classRoomId, id -> new LinkedHashMap<>());
         List<GroupeEntry> created = new ArrayList<>();
 
         for (List<Long> ids : groupEleves) {
@@ -158,8 +164,8 @@ public class ClassRoomPlanService {
         return created;
     }
 
-    public List<GroupeEntry> getGroupes(long classRoomId) {
-        Map<Long, Groupe> groupes = classRoomGroupes.get(classRoomId);
+    public List<GroupeEntry> getGroupes(String owner, long classRoomId) {
+        Map<Long, Groupe> groupes = getGroupStore(owner).get(classRoomId);
         if (groupes == null) {
             return List.of();
         }
@@ -170,8 +176,8 @@ public class ClassRoomPlanService {
         return entries;
     }
 
-    public GroupeEntry updateGroupe(long classRoomId, long groupeId, List<Long> addEleveIds, List<Long> removeEleveIds) {
-        Map<Long, Groupe> groupes = classRoomGroupes.get(classRoomId);
+    public GroupeEntry updateGroupe(String owner, long classRoomId, long groupeId, List<Long> addEleveIds, List<Long> removeEleveIds) {
+        Map<Long, Groupe> groupes = getGroupStore(owner).get(classRoomId);
         if (groupes == null) {
             return null;
         }
@@ -185,7 +191,7 @@ public class ClassRoomPlanService {
             return null;
         }
 
-        ClassRoom classRoom = classRooms.get(classRoomId);
+        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return null;
         }
@@ -231,20 +237,20 @@ public class ClassRoomPlanService {
         return new GroupeEntry(groupeId, groupe);
     }
 
-    public boolean deleteGroupe(long classRoomId, long groupeId) {
-        Map<Long, Groupe> groupes = classRoomGroupes.get(classRoomId);
+    public boolean deleteGroupe(String owner, long classRoomId, long groupeId) {
+        Map<Long, Groupe> groupes = getGroupStore(owner).get(classRoomId);
         if (groupes == null) {
             return false;
         }
         Groupe removed = groupes.remove(groupeId);
         if (groupes.isEmpty()) {
-            classRoomGroupes.remove(classRoomId);
+            getGroupStore(owner).remove(classRoomId);
         }
         return removed != null;
     }
 
-    public boolean deleteEleve(long classRoomId, long eleveId) {
-        ClassRoom classRoom = classRooms.get(classRoomId);
+    public boolean deleteEleve(String owner, long classRoomId, long eleveId) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return false;
         }
@@ -262,8 +268,8 @@ public class ClassRoomPlanService {
         return false;
     }
 
-    public Eleve createEleve(long classRoomId, String nom, String prenom, Integer tableIndex) {
-        ClassRoom classRoom = classRooms.get(classRoomId);
+    public Eleve createEleve(String owner, long classRoomId, String nom, String prenom, Integer tableIndex) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
         if (classRoom == null) {
             return null;
         }
@@ -287,8 +293,8 @@ public class ClassRoomPlanService {
         return eleve;
     }
 
-    public Eleve updateEleve(long classRoomId, long eleveId, String nom, String prenom) {
-        ClassRoom classRoom = classRooms.get(classRoomId);
+    public Eleve updateEleve(String owner, long classRoomId, long eleveId, String nom, String prenom) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return null;
         }
@@ -313,8 +319,8 @@ public class ClassRoomPlanService {
         return null;
     }
 
-    public ClassRoom updateClassRoom(long classRoomId, String nom) {
-        ClassRoom classRoom = classRooms.get(classRoomId);
+    public ClassRoom updateClassRoom(String owner, long classRoomId, String nom) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
         if (classRoom == null) {
             return null;
         }
@@ -327,8 +333,8 @@ public class ClassRoomPlanService {
         return classRoom;
     }
 
-    public Table createTable(long classRoomId, int x, int y) {
-        ClassRoom classRoom = classRooms.get(classRoomId);
+    public Table createTable(String owner, long classRoomId, int x, int y) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
         if (classRoom == null) {
             return null;
         }
@@ -344,8 +350,8 @@ public class ClassRoomPlanService {
         return table;
     }
 
-    public boolean deleteTableByIndex(long classRoomId, int tableIndex) {
-        ClassRoom classRoom = classRooms.get(classRoomId);
+    public boolean deleteTableByIndex(String owner, long classRoomId, int tableIndex) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
         if (classRoom == null || classRoom.getTables() == null) {
             return false;
         }
@@ -365,41 +371,41 @@ public class ClassRoomPlanService {
     }
 
 
-    public List<Eleve> getEleves(long id) {
-        ClassRoom classRoom = classRooms.get(id);
+    public List<Eleve> getEleves(String owner, long id) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(id);
         if (classRoom == null) {
             return List.of();
         }
         return classRoom.getEleves().getEleves();
     }
 
-    public List<Table> getTables(long id) {
-        ClassRoom classRoom = classRooms.get(id);
+    public List<Table> getTables(String owner, long id) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(id);
         if (classRoom == null) {
             return List.of();
         }
         return classRoom.getTables();
     }
 
-    public ClassRoomExport exportClassRoom(long id) {
-        ClassRoom classRoom = classRooms.get(id);
+    public ClassRoomExport exportClassRoom(String owner, long id) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(id);
         if (classRoom == null) {
             return null;
         }
         return new ClassRoomExport(classRoom);
     }
 
-    public ClassRoom saveClassRoom(ClassRoomExport export) {
+    public ClassRoom saveClassRoom(String owner, ClassRoomExport export) {
         if (export == null) {
             return null;
         }
         ClassRoom classRoom = new ClassRoom(export);
-        classRooms.put(classRoom.getId(), classRoom);
+        getClassRoomStore(owner).put(classRoom.getId(), classRoom);
         updateCountersFromImport(classRoom);
         return classRoom;
     }
 
-    public ClassRoom importFromCsv(String csvContent) {
+    public ClassRoom importFromCsv(String owner, String csvContent) {
         if (csvContent == null || csvContent.trim().isEmpty()) {
             return null;
         }
@@ -413,13 +419,13 @@ public class ClassRoomPlanService {
         export.setNom(unquoteCsvValue(export.getNom()));
         
         ClassRoom classRoom = new ClassRoom(export);
-        classRooms.put(classRoom.getId(), classRoom);
+        getClassRoomStore(owner).put(classRoom.getId(), classRoom);
         updateCountersFromImport(classRoom);
         return classRoom;
     }
 
-    public String exportToCsv(long id) {
-        ClassRoom classRoom = classRooms.get(id);
+    public String exportToCsv(String owner, long id) {
+        ClassRoom classRoom = getClassRoomStore(owner).get(id);
         if (classRoom == null) {
             return null;
         }
@@ -497,40 +503,6 @@ public class ClassRoomPlanService {
             return trimmed.substring(1, trimmed.length() - 1).replace("\"\"", "\"");
         }
         return trimmed;
-    }
-
-    private void seedSampleData() {
-        ClassRoomRespository.resetCounter();
-        ClassRoomRespository.incrementCounter();
-        eleveIdCounter = 1;
-        ClassRoom salleA = createClassRoom("6èmeA", 3, 1);
-        ClassRoom salleB = createClassRoom("5èmeB", 2, 1);
-        classRooms.put(salleA.getId(), salleA);
-        classRooms.put(salleB.getId(), salleB);
-    }
-
-    private ClassRoom createClassRoom(String name, int width, int height) {
-        ClassRoomExport export = classRoomService.creerClassRoom(name);
-        ClassRoom classRoom = new ClassRoom(export);
-        Groupe groupe = new Groupe();
-        List<Table> tables = new ArrayList<>();
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                Table table = tableService.creerTable(new Position(x, y));
-                tables.add(table);
-
-                long eleveId = eleveIdCounter++;
-                String[] names = SEED_ELEVES.get((int) ((eleveId - 1) % SEED_ELEVES.size()));
-                Eleve eleve = new Eleve(eleveId, names[0], names[1]);
-                eleve.setTable(table);
-                groupeService.ajouterEleve(groupe, eleve);
-            }
-        }
-
-        classRoom.setEleves(groupe);
-        classRoom.setTables(tables);
-        return classRoom;
     }
 
     private void updateCountersFromImport(ClassRoom classRoom) {
