@@ -6,6 +6,7 @@ RUN rm -rf /usr/local/tomcat/webapps/* \
  && rm -rf /var/lib/apt/lists/*
 
 # Télécharge le .war de la dernière release GitHub (quel que soit le numéro)
+
 RUN set -e; \
   WAR_URL="$(curl -fsSL https://api.github.com/repos/prof-vukasinovic/ClassFlow-back/releases/latest \
     | sed -n 's/.*"browser_download_url":[ ]*"\([^"]*\.war\)".*/\1/p' \
