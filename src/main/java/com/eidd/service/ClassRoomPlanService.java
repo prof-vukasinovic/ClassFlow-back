@@ -16,28 +16,34 @@ import com.eidd.model.Eleve;
 import com.eidd.model.Groupe;
 import com.eidd.model.Position;
 import com.eidd.model.Table;
-import com.eidd.repositories.ClassRoomRespository;
+import com.eidd.repositories.ClassRoomRepository;
 
 @Service
 public class ClassRoomPlanService {
-    private final Map<String, Map<Long, ClassRoom>> classRoomsByOwner = new LinkedHashMap<>();
     private final Map<String, Map<Long, Map<Long, Groupe>>> classRoomGroupesByOwner = new LinkedHashMap<>();
-    private final ClassRoomService classRoomService = new ClassRoomService();
-    private final GroupeService groupeService = new GroupeService();
-    private final TableService tableService = new TableService();
-    private long eleveIdCounter = 1;
+    private final ClassRoomRepository classRoomRepository;
+    private final ClassRoomService classRoomService;
+    private final GroupeService groupeService;
+    private final TableService tableService;
     private long groupeIdCounter = 1;
 
-    public ClassRoomPlanService() {
+    public ClassRoomPlanService(ClassRoomRepository classRoomRepository,
+            ClassRoomService classRoomService,
+            GroupeService groupeService,
+            TableService tableService) {
+        this.classRoomRepository = classRoomRepository;
+        this.classRoomService = classRoomService;
+        this.groupeService = groupeService;
+        this.tableService = tableService;
     }
 
     private String normalizeOwner(String owner) {
         return owner == null || owner.trim().isEmpty() ? "anonymous" : owner.trim();
     }
 
-    private Map<Long, ClassRoom> getClassRoomStore(String owner) {
+    private ClassRoom findOwnedClassRoom(String owner, long id) {
         String key = normalizeOwner(owner);
-        return classRoomsByOwner.computeIfAbsent(key, ignored -> new LinkedHashMap<>());
+        return classRoomRepository.findByIdAndOwner(id, key).orElse(null);
     }
 
     private Map<Long, Map<Long, Groupe>> getGroupStore(String owner) {
@@ -46,28 +52,38 @@ public class ClassRoomPlanService {
     }
 
     public List<ClassRoom> getClassRooms(String owner) {
-        return new ArrayList<>(getClassRoomStore(owner).values());
+        return classRoomRepository.findByOwner(normalizeOwner(owner));
     }
 
     public ClassRoom getClassRoom(String owner, long id) {
-        return getClassRoomStore(owner).get(id);
+        return findOwnedClassRoom(owner, id);
     }
 
     public boolean deleteClassRoom(String owner, long id) {
         getGroupStore(owner).remove(id);
-        return getClassRoomStore(owner).remove(id) != null;
+        ClassRoom classRoom = findOwnedClassRoom(owner, id);
+        if (classRoom == null) {
+            return false;
+        }
+        classRoomRepository.delete(classRoom);
+        return true;
     }
 
     public ClassRoom createNewClassRoom(String owner, String nom) {
         if (nom == null || nom.trim().isEmpty()) {
             return null;
         }
-        ClassRoomExport export = classRoomService.creerClassRoom(nom);
-        ClassRoom classRoom = new ClassRoom(export);
-        classRoom.setEleves(new Groupe());
-        classRoom.setTables(new ArrayList<>());
-        getClassRoomStore(owner).put(classRoom.getId(), classRoom);
-        return classRoom;
+        ClassRoomExport export = classRoomService.creerClassRoom(nom, normalizeOwner(owner));
+        if (export == null) {
+            return null;
+        }
+        ClassRoom saved = findOwnedClassRoom(owner, export.getId());
+        if (saved != null) {
+            return saved;
+        }
+        ClassRoom fallback = new ClassRoom(export);
+        fallback.setOwner(normalizeOwner(owner));
+        return fallback;
     }
 
     public List<GroupeEntry> createGroupesAleatoires(String owner, long classRoomId, int groupCount) {
@@ -75,7 +91,7 @@ public class ClassRoomPlanService {
             return null;
         }
 
-        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return null;
         }
@@ -120,7 +136,7 @@ public class ClassRoomPlanService {
             return null;
         }
 
-        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return null;
         }
@@ -191,7 +207,7 @@ public class ClassRoomPlanService {
             return null;
         }
 
-        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return null;
         }
@@ -250,7 +266,7 @@ public class ClassRoomPlanService {
     }
 
     public boolean deleteEleve(String owner, long classRoomId, long eleveId) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return false;
         }
@@ -262,6 +278,7 @@ public class ClassRoomPlanService {
             Eleve eleve = eleves.get(i);
             if (eleve.getId() == eleveId) {
                 eleves.remove(i);
+                classRoomRepository.save(classRoom);
                 return true;
             }
         }
@@ -269,7 +286,7 @@ public class ClassRoomPlanService {
     }
 
     public Eleve createEleve(String owner, long classRoomId, String nom, String prenom, Integer tableIndex) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
         if (classRoom == null) {
             return null;
         }
@@ -280,7 +297,7 @@ public class ClassRoomPlanService {
             classRoom.setEleves(groupe);
         }
 
-        Eleve eleve = new Eleve(eleveIdCounter++, nom, prenom);
+        Eleve eleve = new Eleve(nom, prenom);
         if (tableIndex != null) {
             List<Table> tables = classRoom.getTables();
             if (tables == null || tableIndex < 0 || tableIndex >= tables.size()) {
@@ -290,11 +307,12 @@ public class ClassRoomPlanService {
         }
 
         groupeService.ajouterEleve(groupe, eleve);
+        classRoomRepository.save(classRoom);
         return eleve;
     }
 
     public Eleve updateEleve(String owner, long classRoomId, long eleveId, String nom, String prenom) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
         if (classRoom == null || classRoom.getEleves() == null) {
             return null;
         }
@@ -312,6 +330,7 @@ public class ClassRoomPlanService {
                 if (prenom != null && !prenom.trim().isEmpty()) {
                     eleve.setPrenom(prenom);
                 }
+                classRoomRepository.save(classRoom);
                 return eleve;
             }
         }
@@ -320,7 +339,7 @@ public class ClassRoomPlanService {
     }
 
     public ClassRoom updateClassRoom(String owner, long classRoomId, String nom) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
         if (classRoom == null) {
             return null;
         }
@@ -330,11 +349,11 @@ public class ClassRoomPlanService {
         }
 
         classRoom.setNom(nom);
-        return classRoom;
+        return classRoomRepository.save(classRoom);
     }
 
     public Table createTable(String owner, long classRoomId, int x, int y) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
         if (classRoom == null) {
             return null;
         }
@@ -347,11 +366,12 @@ public class ClassRoomPlanService {
 
         Table table = tableService.creerTable(new Position(x, y));
         tables.add(table);
+        classRoomRepository.save(classRoom);
         return table;
     }
 
     public boolean deleteTableByIndex(String owner, long classRoomId, int tableIndex) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(classRoomId);
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
         if (classRoom == null || classRoom.getTables() == null) {
             return false;
         }
@@ -367,28 +387,29 @@ public class ClassRoomPlanService {
                 }
             }
         }
+        classRoomRepository.save(classRoom);
         return true;
     }
 
 
     public List<Eleve> getEleves(String owner, long id) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(id);
+        ClassRoom classRoom = findOwnedClassRoom(owner, id);
         if (classRoom == null) {
             return List.of();
         }
-        return classRoom.getEleves().getEleves();
+        return classRoom.getEleves() == null ? List.of() : classRoom.getEleves().getEleves();
     }
 
     public List<Table> getTables(String owner, long id) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(id);
+        ClassRoom classRoom = findOwnedClassRoom(owner, id);
         if (classRoom == null) {
             return List.of();
         }
-        return classRoom.getTables();
+        return classRoom.getTables() == null ? List.of() : classRoom.getTables();
     }
 
     public ClassRoomExport exportClassRoom(String owner, long id) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(id);
+        ClassRoom classRoom = findOwnedClassRoom(owner, id);
         if (classRoom == null) {
             return null;
         }
@@ -400,9 +421,8 @@ public class ClassRoomPlanService {
             return null;
         }
         ClassRoom classRoom = new ClassRoom(export);
-        getClassRoomStore(owner).put(classRoom.getId(), classRoom);
-        updateCountersFromImport(classRoom);
-        return classRoom;
+        classRoom.setOwner(normalizeOwner(owner));
+        return classRoomRepository.save(classRoom);
     }
 
     public ClassRoom importFromCsv(String owner, String csvContent) {
@@ -419,13 +439,12 @@ public class ClassRoomPlanService {
         export.setNom(unquoteCsvValue(export.getNom()));
         
         ClassRoom classRoom = new ClassRoom(export);
-        getClassRoomStore(owner).put(classRoom.getId(), classRoom);
-        updateCountersFromImport(classRoom);
-        return classRoom;
+        classRoom.setOwner(normalizeOwner(owner));
+        return classRoomRepository.save(classRoom);
     }
 
     public String exportToCsv(String owner, long id) {
-        ClassRoom classRoom = getClassRoomStore(owner).get(id);
+        ClassRoom classRoom = findOwnedClassRoom(owner, id);
         if (classRoom == null) {
             return null;
         }
@@ -450,8 +469,7 @@ public class ClassRoomPlanService {
             return csvContent;
         }
 
-        long classRoomId = ClassRoomRespository.getCounter();
-        ClassRoomRespository.incrementCounter();
+        long classRoomId = 0;
 
         StringBuilder builder = new StringBuilder();
         builder.append(classRoomId)
@@ -505,23 +523,4 @@ public class ClassRoomPlanService {
         return trimmed;
     }
 
-    private void updateCountersFromImport(ClassRoom classRoom) {
-        if (classRoom == null) {
-            return;
-        }
-
-        long classRoomId = classRoom.getId();
-        while (ClassRoomRespository.getCounter() <= classRoomId) {
-            ClassRoomRespository.incrementCounter();
-        }
-
-        long maxEleveId = classRoom.getEleves() == null ? 0
-            : classRoom.getEleves().getEleves().stream()
-                .mapToLong(Eleve::getId)
-                .max()
-                .orElse(0);
-        if (maxEleveId >= eleveIdCounter) {
-            eleveIdCounter = maxEleveId + 1;
-        }
-    }
 }

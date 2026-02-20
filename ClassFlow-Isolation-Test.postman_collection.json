@@ -1,0 +1,426 @@
+{
+  "info": {
+    "name": "ClassFlow - Multi-User Isolation Test",
+    "description": "Test collection: Create classrooms for demo1 and demo2 with different students to verify isolation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "password",
+        "value": "demo1",
+        "type": "string"
+      },
+      {
+        "key": "username",
+        "value": "demo1",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Demo1 - Create Class",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.collectionVariables.set('demo1_class_id', jsonData.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "demo1",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "demo1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nom\": \"Classe Demo1\"}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/classrooms",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "classrooms"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Demo1 - Add Student 1 (Yassin Gdaiem)",
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "demo1",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "demo1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nom\": \"Gdaiem\", \"prenom\": \"Yassin\"}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/classrooms/{{demo1_class_id}}/eleves",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "classrooms",
+            "{{demo1_class_id}}",
+            "eleves"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Demo1 - Add Student 2 (Bastien Adiveze)",
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "demo1",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "demo1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nom\": \"Adiveze\", \"prenom\": \"Bastien\"}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/classrooms/{{demo1_class_id}}/eleves",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "classrooms",
+            "{{demo1_class_id}}",
+            "eleves"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Demo1 - Add Student 3 (Hugo Lege)",
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "demo1",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "demo1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nom\": \"Lege\", \"prenom\": \"Hugo\"}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/classrooms/{{demo1_class_id}}/eleves",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "classrooms",
+            "{{demo1_class_id}}",
+            "eleves"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Demo2 - Create Class",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.collectionVariables.set('demo2_class_id', jsonData.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "demo2",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "demo2",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nom\": \"Classe Demo2\"}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/classrooms",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "classrooms"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Demo2 - Add Student 1 (Eve Lin)",
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "demo2",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "demo2",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nom\": \"Lin\", \"prenom\": \"Eve\"}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/classrooms/{{demo2_class_id}}/eleves",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "classrooms",
+            "{{demo2_class_id}}",
+            "eleves"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Demo2 - Add Student 2 (Thierry Abbou)",
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "demo2",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "demo2",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nom\": \"Abbou\", \"prenom\": \"Thierry\"}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/classrooms/{{demo2_class_id}}/eleves",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "classrooms",
+            "{{demo2_class_id}}",
+            "eleves"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Verify - Demo1 sees only their class",
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "demo1",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "demo1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/classrooms",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "classrooms"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Verify - Demo2 sees only their class",
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "password",
+              "value": "demo2",
+              "type": "string"
+            },
+            {
+              "key": "username",
+              "value": "demo2",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/classrooms",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "classrooms"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "demo1_class_id",
+      "value": ""
+    },
+    {
+      "key": "demo2_class_id",
+      "value": ""
+    }
+  ]
+}

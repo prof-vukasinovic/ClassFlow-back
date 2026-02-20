@@ -1,0 +1,94 @@
+{
+  "info": {
+    "name": "ClassFlow Back - Classrooms",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      { "key": "username", "value": "demo1", "type": "string" },
+      { "key": "password", "value": "demo1", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Create classroom",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"6A\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/classrooms",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["classrooms"]
+        }
+      }
+    },
+    {
+      "name": "List classrooms",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8080/classrooms",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["classrooms"]
+        }
+      }
+    },
+    {
+      "name": "Get classroom by id",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8080/classrooms/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["classrooms", "1"]
+        }
+      }
+    },
+    {
+      "name": "Update classroom name",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"6A - MAJ\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/classrooms/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["classrooms", "1"]
+        }
+      }
+    },
+    {
+      "name": "Delete classroom",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "http://localhost:8080/classrooms/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["classrooms", "1"]
+        }
+      }
+    }
+  ]
+}
