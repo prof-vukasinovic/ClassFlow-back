@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.eidd.DTO.ClassRoomExport;
 import com.eidd.dto.ClassRoomCreateRequest;
 import com.eidd.dto.ClassRoomPlan;
 import com.eidd.dto.ClassRoomRemarquesDto;
@@ -139,6 +140,32 @@ public class ClassRoomController {
                 findEleveForTable(owner(principal), classRoom, table)))
             .toList();
         return ResponseEntity.ok(new ClassRoomPlan(classRoom.getId(), classRoom.getNom(), tables));
+    }
+
+    @GetMapping("/classrooms/{id}/chargement")
+    public ResponseEntity<ClassRoomExport> loadClassRoom(@PathVariable long id, Principal principal) {
+        ClassRoomExport export = planService.exportClassRoom(owner(principal), id);
+        if (export == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(export);
+    }
+
+    @PostMapping("/classrooms/sauvegarde")
+    public ResponseEntity<?> saveClassRoom(@RequestBody ClassRoomExport export, Principal principal) {
+        if (export == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "classRoom export is required"));
+        }
+
+        String owner = owner(principal);
+        boolean exists = planService.getClassRoom(owner, export.getId()) != null;
+        ClassRoom saved = planService.saveClassRoom(owner, export);
+        if (saved == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid classRoom export"));
+        }
+
+        HttpStatus status = exists ? HttpStatus.OK : HttpStatus.CREATED;
+        return ResponseEntity.status(status).body(export);
     }
 
     @PostMapping("/classrooms/import-csv")
