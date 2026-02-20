@@ -42,6 +42,29 @@ curl -u demo1:demo1 http://localhost:8080/classrooms
 
 Tous les autres endpoints nécessitent une authentification.
 
+## Persistance des données et isolation multi-utilisateur
+
+### Base de données PostgreSQL
+ClassFlow-back utilise **PostgreSQL** avec **Hibernate ORM** pour la persistance des données:
+- **Configuration**: [application.properties](src/main/resources/application.properties)
+- **Schéma auto-généré**: `spring.jpa.hibernate.ddl-auto=update` crée/met à jour les tables automatiquement
+- **Tables principales**: `class_room`, `groupe`, `eleve`, `utilisateur`, `remarque`
+
+### Isolation par propriétaire (Owner-Based Multi-Tenancy)
+Chaque classe créée appartient à un utilisateur spécifique:
+- Le champ `owner` de la table `class_room` stocke l'identifiant de l'utilisateur propriétaire
+- Lors de la connexion, seules les classes de l'utilisateur connecté sont retournées
+- **Exemple:**
+  - `demo1` crée une classe → `owner = demo1`
+  - `demo2` ne peut pas voir/modifier les classes de `demo1`
+  - Chaque utilisateur voit uniquement ses propres données
+
+### Sécurité
+La propriété est vérifiée à chaque requête:
+- Les queries utilisent `findByOwner(owner)` pour filtrer les données
+- Les opérations (PUT, DELETE) vérifiaient la propriété avant d'exécuter l'action
+- Impossible d'accéder aux données d'un autre utilisateur
+
 # Liste des End Points
 
 ## Endpoints publics
