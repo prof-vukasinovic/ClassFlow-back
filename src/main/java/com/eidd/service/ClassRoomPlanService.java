@@ -131,7 +131,7 @@ public class ClassRoomPlanService {
         return created;
     }
 
-    public List<GroupeEntry> createGroupes(String owner, long classRoomId, List<List<Long>> groupEleves) {
+    public List<GroupeEntry> createGroupes(String owner, long classRoomId, List<List<Long>> groupEleves, List<String> noms) {
         if (groupEleves == null || groupEleves.isEmpty()) {
             return null;
         }
@@ -155,12 +155,19 @@ public class ClassRoomPlanService {
         Map<Long, Groupe> groupes = getGroupStore(owner).computeIfAbsent(classRoomId, id -> new LinkedHashMap<>());
         List<GroupeEntry> created = new ArrayList<>();
 
-        for (List<Long> ids : groupEleves) {
+        for (int i = 0; i < groupEleves.size(); i++) {
+            List<Long> ids = groupEleves.get(i);
             if (ids == null || ids.isEmpty()) {
                 return null;
             }
 
             Groupe groupe = new Groupe();
+            
+            // Assigner le nom si fourni
+            if (noms != null && i < noms.size() && noms.get(i) != null) {
+                groupe.setNom(noms.get(i));
+            }
+            
             for (Long eleveId : ids) {
                 if (eleveId == null || !used.add(eleveId)) {
                     return null;
@@ -192,7 +199,7 @@ public class ClassRoomPlanService {
         return entries;
     }
 
-    public GroupeEntry updateGroupe(String owner, long classRoomId, long groupeId, List<Long> addEleveIds, List<Long> removeEleveIds) {
+    public GroupeEntry updateGroupe(String owner, long classRoomId, long groupeId, List<Long> addEleveIds, List<Long> removeEleveIds, String nom) {
         Map<Long, Groupe> groupes = getGroupStore(owner).get(classRoomId);
         if (groupes == null) {
             return null;
@@ -203,7 +210,12 @@ public class ClassRoomPlanService {
             return null;
         }
 
+        // Si seulement le nom est fourni, on peut le mettre à jour
         if ((addEleveIds == null || addEleveIds.isEmpty()) && (removeEleveIds == null || removeEleveIds.isEmpty())) {
+            if (nom != null) {
+                groupe.setNom(nom);
+                return new GroupeEntry(groupeId, groupe);
+            }
             return null;
         }
 
@@ -248,6 +260,11 @@ public class ClassRoomPlanService {
                 return null;
             }
             groupeService.ajouterEleve(groupe, eleve);
+        }
+
+        // Mettre à jour le nom si fourni
+        if (nom != null) {
+            groupe.setNom(nom);
         }
 
         return new GroupeEntry(groupeId, groupe);

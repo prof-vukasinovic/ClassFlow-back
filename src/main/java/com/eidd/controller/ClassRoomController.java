@@ -290,7 +290,7 @@ public class ClassRoomController {
             return ResponseEntity.notFound().build();
         }
 
-        List<GroupeEntry> created = planService.createGroupes(owner(principal), id, request.groupes());
+        List<GroupeEntry> created = planService.createGroupes(owner(principal), id, request.groupes(), request.noms());
         if (created == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "unable to create groups"));
         }
@@ -334,7 +334,7 @@ public class ClassRoomController {
             return ResponseEntity.notFound().build();
         }
 
-        GroupeEntry updated = planService.updateGroupe(owner(principal), classRoomId, groupeId, request.addEleveIds(), request.removeEleveIds());
+        GroupeEntry updated = planService.updateGroupe(owner(principal), classRoomId, groupeId, request.addEleveIds(), request.removeEleveIds(), request.nom());
         if (updated == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "unable to update group"));
         }
@@ -410,7 +410,7 @@ public class ClassRoomController {
         List<EleveRemarquesDto> eleves = entry.groupe().getEleves().stream()
             .map(eleve -> toEleveRemarques(owner, classRoomId, eleve))
             .toList();
-        return new GroupeDto(entry.id(), eleves);
+        return new GroupeDto(entry.id(), entry.groupe().getNom(), eleves);
     }
 
     private String owner(Principal principal) {
