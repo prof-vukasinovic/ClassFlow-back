@@ -157,8 +157,8 @@ public class ClassRoomPlanService {
 
         for (int i = 0; i < groupEleves.size(); i++) {
             List<Long> ids = groupEleves.get(i);
-            if (ids == null || ids.isEmpty()) {
-                return null;
+            if (ids == null) {
+                ids = new ArrayList<>();
             }
 
             Groupe groupe = new Groupe();
@@ -538,6 +538,77 @@ public class ClassRoomPlanService {
             return trimmed.substring(1, trimmed.length() - 1).replace("\"\"", "\"");
         }
         return trimmed;
+    }
+
+    public Table updateTablePosition(String owner, long classRoomId, int tableIndex, int newX, int newY) {
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
+        if (classRoom == null || classRoom.getTables() == null) {
+            return null;
+        }
+        if (tableIndex < 0 || tableIndex >= classRoom.getTables().size()) {
+            return null;
+        }
+        Table table = classRoom.getTables().get(tableIndex);
+        if (table.getPosition() == null) {
+            table.setPosition(new Position(newX, newY));
+        } else {
+            table.getPosition().setX(newX);
+            table.getPosition().setY(newY);
+        }
+        classRoomRepository.save(classRoom);
+        return table;
+    }
+
+    public Eleve assignEleveToTable(String owner, long classRoomId, long eleveId, int tableIndex) {
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
+        if (classRoom == null || classRoom.getEleves() == null || classRoom.getTables() == null) {
+            return null;
+        }
+        if (tableIndex < 0 || tableIndex >= classRoom.getTables().size()) {
+            return null;
+        }
+        
+        Eleve eleve = classRoom.getEleves().getEleves().stream()
+            .filter(e -> e.getId() == eleveId)
+            .findFirst()
+            .orElse(null);
+        
+        if (eleve == null) {
+            return null;
+        }
+        
+        Table table = classRoom.getTables().get(tableIndex);
+        eleve.setTable(new Table(table.getPosition()));
+        classRoomRepository.save(classRoom);
+        return eleve;
+    }
+
+    public boolean swapEleves(String owner, long classRoomId, long eleveId1, long eleveId2) {
+        ClassRoom classRoom = findOwnedClassRoom(owner, classRoomId);
+        if (classRoom == null || classRoom.getEleves() == null) {
+            return false;
+        }
+        
+        Eleve eleve1 = classRoom.getEleves().getEleves().stream()
+            .filter(e -> e.getId() == eleveId1)
+            .findFirst()
+            .orElse(null);
+        
+        Eleve eleve2 = classRoom.getEleves().getEleves().stream()
+            .filter(e -> e.getId() == eleveId2)
+            .findFirst()
+            .orElse(null);
+        
+        if (eleve1 == null || eleve2 == null) {
+            return false;
+        }
+        
+        Table tempTable = eleve1.getTable();
+        eleve1.setTable(eleve2.getTable());
+        eleve2.setTable(tempTable);
+        
+        classRoomRepository.save(classRoom);
+        return true;
     }
 
 }

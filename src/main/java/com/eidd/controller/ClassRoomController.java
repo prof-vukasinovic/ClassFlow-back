@@ -22,6 +22,7 @@ import com.eidd.dto.ClassRoomRemarquesDto;
 import com.eidd.dto.ClassRoomUpdateRequest;
 import com.eidd.dto.EleveCreateRequest;
 import com.eidd.dto.EleveRemarquesDto;
+import com.eidd.dto.EleveSwapRequest;
 import com.eidd.dto.EleveUpdateRequest;
 import com.eidd.dto.GroupeCreateRequest;
 import com.eidd.dto.GroupeDto;
@@ -30,6 +31,7 @@ import com.eidd.dto.GroupeUpdateRequest;
 import com.eidd.dto.RemarqueDto;
 import com.eidd.dto.TableCreateRequest;
 import com.eidd.dto.TablePlanDto;
+import com.eidd.dto.TablePositionUpdateRequest;
 import com.eidd.model.ClassRoom;
 import com.eidd.model.Eleve;
 import com.eidd.model.Table;
@@ -255,6 +257,49 @@ public class ClassRoomController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(table);
+    }
+
+    @PutMapping("/classrooms/{id}/tables/{tableIndex}/position")
+    public ResponseEntity<?> updateTablePosition(@PathVariable long id, 
+            @PathVariable int tableIndex,
+            @RequestBody TablePositionUpdateRequest request,
+            Principal principal) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "position is required"));
+        }
+
+        Table table = planService.updateTablePosition(owner(principal), id, tableIndex, request.x(), request.y());
+        if (table == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(table);
+    }
+
+    @PutMapping("/classrooms/{id}/eleves/{eleveId}/table/{tableIndex}")
+    public ResponseEntity<?> assignEleveToTable(@PathVariable long id, 
+            @PathVariable long eleveId,
+            @PathVariable int tableIndex,
+            Principal principal) {
+        Eleve eleve = planService.assignEleveToTable(owner(principal), id, eleveId, tableIndex);
+        if (eleve == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(toEleveRemarques(owner(principal), id, eleve));
+    }
+
+    @PostMapping("/classrooms/{id}/eleves/swap")
+    public ResponseEntity<?> swapEleves(@PathVariable long id, 
+            @RequestBody EleveSwapRequest request,
+            Principal principal) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "swap request is required"));
+        }
+
+        boolean success = planService.swapEleves(owner(principal), id, request.eleveId1(), request.eleveId2());
+        if (!success) {
+            return ResponseEntity.badRequest().body(Map.of("error", "unable to swap eleves"));
+        }
+        return ResponseEntity.ok(Map.of("message", "eleves swapped successfully"));
     }
 
     @PostMapping("/classrooms/{id}/groupes/aleatoire")

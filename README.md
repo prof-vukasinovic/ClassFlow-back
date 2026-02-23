@@ -85,10 +85,13 @@ POST /classrooms
 POST /classrooms/import-csv
 POST /classrooms/{id}/eleves
 POST /classrooms/{id}/tables
+POST /classrooms/{id}/eleves/swap
 POST /classrooms/{id}/groupes
 POST /classrooms/{id}/groupes/aleatoire
 PUT /classrooms/{id}
 PUT /classrooms/{classRoomId}/eleves/{eleveId}
+PUT /classrooms/{id}/tables/{tableIndex}/position
+PUT /classrooms/{id}/eleves/{eleveId}/table/{tableIndex}
 PUT /classrooms/{classRoomId}/groupes/{groupeId}
 DELETE /classrooms/{id}
 DELETE /classrooms/{classRoomId}/eleves/{eleveId}
@@ -183,13 +186,39 @@ POST /classrooms/{id}/tables
 }
 ```
 
+## Mettre à jour la position d'une table
+PUT /classrooms/{id}/tables/{tableIndex}/position
+```json
+{
+	"x": 4,
+	"y": 2
+}
+```
+
+## Assigner un élève à une table
+PUT /classrooms/{id}/eleves/{eleveId}/table/{tableIndex}
+```json
+{}
+```
+
+## Échanger deux élèves de place
+POST /classrooms/{id}/eleves/swap
+```json
+{
+	"eleveId1": 1,
+	"eleveId2": 2
+}
+```
+
 ## Creer des groupes non aleatoires
 POST /classrooms/{id}/groupes
 ```json
 {
-	"groupes": [[1, 2], [3, 4]]
+	"groupes": [[1, 2], [3, 4]],
+	"noms": ["Groupe 1", "Groupe 2"]
 }
 ```
+La liste `noms` est optionnelle. Si omise, les groupes auront des noms par défaut.
 
 ## Creer des groupes aleatoires
 POST /classrooms/{id}/groupes/aleatoire
@@ -199,14 +228,16 @@ POST /classrooms/{id}/groupes/aleatoire
 }
 ```
 
-## Modifier un groupe (ajouter / retirer des eleves)
+## Modifier un groupe (ajouter / retirer des eleves, changer le nom)
 PUT /classrooms/{classRoomId}/groupes/{groupeId}
 ```json
 {
 	"addEleveIds": [5, 8],
-	"removeEleveIds": [2]
+	"removeEleveIds": [2],
+	"nom": "Groupe des champions"
 }
 ```
+Tous les champs sont optionnels. Vous pouvez modifier uniquement le nom, uniquement les élèves, ou les deux.
 
 ## Remarques
 POST /remarques
