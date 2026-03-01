@@ -34,6 +34,7 @@ import com.eidd.dto.TablePlanDto;
 import com.eidd.dto.TablePositionUpdateRequest;
 import com.eidd.model.ClassRoom;
 import com.eidd.model.Eleve;
+import com.eidd.model.Groupe;
 import com.eidd.model.Table;
 import com.eidd.service.ClassRoomPlanService;
 import com.eidd.service.GroupeEntry;
@@ -430,7 +431,12 @@ public class ClassRoomController {
     }
 
     private ClassRoomRemarquesDto toClassRoomRemarques(String owner, ClassRoom classRoom) {
-        List<EleveRemarquesDto> eleves = classRoom.getEleves().getEleves().stream()
+        Groupe groupe = classRoom.getEleves();
+        if (groupe == null) {
+            groupe = new Groupe();
+            classRoom.setEleves(groupe);
+        }
+        List<EleveRemarquesDto> eleves = groupe.getEleves().stream()
             .map(eleve -> toEleveRemarques(owner, classRoom.getId(), eleve))
             .toList();
         return new ClassRoomRemarquesDto(classRoom.getId(), classRoom.getNom(), eleves, classRoom.getTables());
@@ -444,7 +450,11 @@ public class ClassRoomController {
     }
 
     private EleveRemarquesDto findEleveForTable(String owner, ClassRoom classRoom, Table table) {
-        return classRoom.getEleves().getEleves().stream()
+        Groupe groupe = classRoom.getEleves();
+        if (groupe == null || groupe.getEleves() == null) {
+            return null;
+        }
+        return groupe.getEleves().stream()
             .filter(eleve -> eleve.getTable() == table)
             .findFirst()
             .map(eleve -> toEleveRemarques(owner, classRoom.getId(), eleve))
