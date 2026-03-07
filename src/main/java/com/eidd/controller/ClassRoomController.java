@@ -253,9 +253,15 @@ public class ClassRoomController {
             return ResponseEntity.badRequest().body(Map.of("error", "table position is required"));
         }
 
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
+        if (classRoom == null) {
+            return ResponseEntity.notFound().build();
+        }
+
         Table table = planService.createTable(owner(principal), id, request.x(), request.y());
         if (table == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "a table already exists at these coordinates"));
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(table);
     }
@@ -269,9 +275,15 @@ public class ClassRoomController {
             return ResponseEntity.badRequest().body(Map.of("error", "position is required"));
         }
 
+        ClassRoom classRoom = planService.getClassRoom(owner(principal), id);
+        if (classRoom == null) {
+            return ResponseEntity.notFound().build();
+        }
+
         Table table = planService.updateTablePosition(owner(principal), id, tableIndex, request.x(), request.y());
         if (table == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "invalid table index or coordinates already occupied"));
         }
         return ResponseEntity.ok(table);
     }
@@ -454,8 +466,23 @@ public class ClassRoomController {
         if (groupe == null || groupe.getEleves() == null) {
             return null;
         }
+
+        Integer tableX = table != null && table.getPosition() != null ? table.getPosition().getX() : null;
+        Integer tableY = table != null && table.getPosition() != null ? table.getPosition().getY() : null;
+
         return groupe.getEleves().stream()
-            .filter(eleve -> eleve.getTable() == table)
+            .filter(eleve -> {
+                if (eleve.getTable() == table) {
+                    return true;
+                }
+
+                if (tableX == null || tableY == null || eleve.getTable() == null || eleve.getTable().getPosition() == null) {
+                    return false;
+                }
+
+                return eleve.getTable().getPosition().getX() == tableX
+                    && eleve.getTable().getPosition().getY() == tableY;
+            })
             .findFirst()
             .map(eleve -> toEleveRemarques(owner, classRoom.getId(), eleve))
             .orElse(null);

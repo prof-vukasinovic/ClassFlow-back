@@ -381,6 +381,10 @@ public class ClassRoomPlanService {
             classRoom.setTables(tables);
         }
 
+        if (hasTableAtPosition(tables, x, y, -1)) {
+            return null;
+        }
+
         Table table = tableService.creerTable(new Position(x, y));
         tables.add(table);
         classRoomRepository.save(classRoom);
@@ -548,6 +552,11 @@ public class ClassRoomPlanService {
         if (tableIndex < 0 || tableIndex >= classRoom.getTables().size()) {
             return null;
         }
+
+        if (hasTableAtPosition(classRoom.getTables(), newX, newY, tableIndex)) {
+            return null;
+        }
+
         Table table = classRoom.getTables().get(tableIndex);
         if (table.getPosition() == null) {
             table.setPosition(new Position(newX, newY));
@@ -578,9 +587,35 @@ public class ClassRoomPlanService {
         }
         
         Table table = classRoom.getTables().get(tableIndex);
-        eleve.setTable(new Table(table.getPosition()));
+        eleve.setTable(table);
+
+        for (Eleve other : classRoom.getEleves().getEleves()) {
+            if (other.getId() != eleveId && other.getTable() == table) {
+                other.setTable(null);
+            }
+        }
+
         classRoomRepository.save(classRoom);
         return eleve;
+    }
+
+    private boolean hasTableAtPosition(List<Table> tables, int x, int y, int excludedIndex) {
+        for (int i = 0; i < tables.size(); i++) {
+            if (i == excludedIndex) {
+                continue;
+            }
+
+            Table table = tables.get(i);
+            if (table == null || table.getPosition() == null) {
+                continue;
+            }
+
+            if (table.getPosition().getX() == x && table.getPosition().getY() == y) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public boolean swapEleves(String owner, long classRoomId, long eleveId1, long eleveId2) {
